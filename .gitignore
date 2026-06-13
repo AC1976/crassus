@@ -1,0 +1,28 @@
+# Environment variables — never commit these
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Claude
+.claude
+
+# SQLite database — stays on the server's persistent disk
+*.db
+*.sqlite3
+
+# SvelteKit / Node
+crassus-web/node_modules/
+crassus-web/.svelte-kit/
+crassus-web/build/
+
+# macOS
+.DS_Store

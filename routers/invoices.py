@@ -197,11 +197,7 @@ def batch_preview(
         .all()
     )
 
-    # Compute starting invoice sequence for this batch (increment per row without committing)
     scheme = _org_scheme(db, current_user.org_id)
-
-    # For sequential scheme: pre-compute the starting sequence number so we can
-    # allocate numbers in-memory without committing between rows.
     year = today.year
     prefix = f"INV-{year}-"
     seq = 1
@@ -221,35 +217,28 @@ def batch_preview(
 
     rows: List[BatchPreviewRow] = []
     for agreement in agreements:
-        # Next period logic (mirrors /next-period endpoint)
-        latest = (
+        # Walk forward from agreement start to find the billing period containing today
+        period_start = agreement.valid_time_start.date()
+        while True:
+            period_end = _period_end(period_start, agreement.payment_interval)
+            if period_end >= today:
+                break
+            period_start = period_end + timedelta(days=1)
+
+        due_date = period_start - timedelta(days=1)
+
+        # Direct check: has this exact period already been invoiced?
+        already_invoiced = (
             db.query(Invoice)
             .filter(
                 Invoice.agreement_uuid == agreement.agreement_uuid,
                 Invoice.org_id == current_user.org_id,
                 Invoice.invoice_type == "standard",
+                Invoice.billing_period_start == period_start,
+                Invoice.billing_period_end == period_end,
             )
-            .order_by(Invoice.billing_period_end.desc())
             .first()
-        )
-        if latest:
-            period_start = latest.billing_period_end + timedelta(days=1)
-        else:
-            period_start = agreement.valid_time_start.date()
-            while _period_end(period_start, agreement.payment_interval) < today:
-                period_start = _period_end(period_start, agreement.payment_interval) + timedelta(days=1)
-
-        period_end = _period_end(period_start, agreement.payment_interval)
-        due_date = period_start - timedelta(days=1)
-
-        # If the next unbilled period starts AFTER the reference date (last day of selected
-        # billing month), the selected month is already fully covered by an existing invoice.
-        already_invoiced = period_start > today
-        if already_invoiced and latest:
-            # Show the already-issued period so the row is informative
-            period_start = latest.billing_period_start
-            period_end = latest.billing_period_end
-            due_date = period_start - timedelta(days=1)
+        ) is not None
 
         # Resolve labels
         unit = db.query(Unit).filter(Unit.id == agreement.unit_id).first() if agreement.unit_id else None
@@ -294,7 +283,7 @@ def batch_preview(
             already_invoiced=already_invoiced,
         ))
         if not already_invoiced and scheme == "sequential":
-            seq += 1  # Only advance sequence for rows that will actually be created
+            seq += 1
 
     return rows
 

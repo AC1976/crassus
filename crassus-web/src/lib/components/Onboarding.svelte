@@ -57,8 +57,8 @@
 	// Tooltip position
 	let tooltipTop = $state(0);
 	let tooltipLeft = $state(0);
-	let tooltipRight = $state<number | null>(null);
-	let arrowSide = $state<'left' | 'top-right' | 'none'>('none');
+	let tooltipRight: number | null = $state(null);
+	let arrowSide: 'left' | 'top-right' | 'none' = $state('none');
 
 	onMount(() => {
 		if (!localStorage.getItem(STORAGE_KEY)) {

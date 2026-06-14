@@ -454,6 +454,22 @@ def update_invoice(
     return row
 
 
+@router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("owner", "editor")),
+) -> None:
+    invoice = _get_or_404(db, invoice_id, current_user.org_id)
+    if invoice.invoice_status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only pending invoices can be deleted.",
+        )
+    db.delete(invoice)
+    db.commit()
+
+
 @router.post("/{invoice_id}/credit", response_model=InvoiceRead)
 def credit_invoice(
     invoice_id: int,

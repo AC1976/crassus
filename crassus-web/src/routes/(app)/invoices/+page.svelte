@@ -354,6 +354,16 @@
 		} finally { generating = false; }
 	}
 
+	async function handleDeleteInvoice(inv: Invoice) {
+		if (!confirm(`Delete invoice ${inv.invoice_number}? This cannot be undone.`)) return;
+		try {
+			await api.delete(`/invoices/${inv.id}`);
+			load();
+		} catch (err: unknown) {
+			alert(err instanceof Error ? err.message : 'Failed to delete invoice.');
+		}
+	}
+
 	async function handleCredit(inv: Invoice) {
 		if (!confirm(`Credit invoice ${inv.invoice_number}? This will mark the original as credited and create a credit note.`)) return;
 		try {
@@ -564,13 +574,17 @@
 							</span>
 						</td>
 						<td class="px-5 py-4 text-right">
+							<button onclick={() => previewInvoiceById(inv.id)} class="mr-3 text-xs text-white/40 hover:text-white/70 transition-colors">Preview</button>
 							{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
 								<button onclick={() => handleSend(inv)} disabled={sending && sendingInvoice?.id === inv.id}
 									class="mr-3 text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors">
-									{sending && sendingInvoice?.id === inv.id ? (inv.pdf_s3_key ? 'Sending…' : 'Sending…') : (inv.pdf_s3_key ? 'Reminder' : 'Send')}
+									{sending && sendingInvoice?.id === inv.id ? 'Sending…' : (inv.pdf_s3_key ? 'Reminder' : 'Send')}
 								</button>
 								<button onclick={() => openPayModal(inv)} class="mr-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Pay</button>
-								<button onclick={() => handleCredit(inv)} class="text-xs text-amber-400/60 hover:text-amber-400 transition-colors">Credit</button>
+								<button onclick={() => handleCredit(inv)} class="mr-3 text-xs text-amber-400/60 hover:text-amber-400 transition-colors">Credit</button>
+							{/if}
+							{#if inv.invoice_status === 'pending'}
+								<button onclick={() => handleDeleteInvoice(inv)} class="mr-3 text-xs text-red-400/50 hover:text-red-400 transition-colors">Delete</button>
 							{/if}
 							{#if inv.pdf_s3_key}
 								<button onclick={() => handleDownload(inv)}

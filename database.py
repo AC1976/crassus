@@ -1,8 +1,11 @@
+import os
+
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.engine import Engine
 
-DATABASE_URL = "sqlite:///./crassus.db"
+_db_path = os.environ.get("DATABASE_PATH", "./crassus.db")
+DATABASE_URL = f"sqlite:///{_db_path}"
 
 engine = create_engine(
     DATABASE_URL,

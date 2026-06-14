@@ -236,7 +236,7 @@ def batch_preview(
             period_start = latest.billing_period_end + timedelta(days=1)
         else:
             period_start = agreement.valid_time_start.date()
-            while period_start <= today:
+            while _period_end(period_start, agreement.payment_interval) < today:
                 period_start = _period_end(period_start, agreement.payment_interval) + timedelta(days=1)
 
         period_end = _period_end(period_start, agreement.payment_interval)

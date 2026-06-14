@@ -3,7 +3,7 @@
 
 	const STORAGE_KEY = 'crassus_onboarding_v1';
 
-	type Placement = 'right' | 'below-left' | 'center';
+	type Placement = 'right' | 'right-edge' | 'center';
 
 	interface Step {
 		target: string | null;
@@ -14,10 +14,10 @@
 
 	const steps: Step[] = [
 		{
-			target: 'onboarding-settings',
-			placement: 'below-left',
+			target: 'onboarding-properties',
+			placement: 'right-edge',
 			title: 'Start with Settings',
-			body: 'Open your account menu to reach Settings. Fill in your company name, billing email, bank details, logo, and invoice numbering scheme before creating your first invoice.',
+			body: 'First, open the account menu in the top-right corner to reach Settings. Fill in your company name, billing email, bank details, logo, and invoice numbering scheme before creating your first invoice.',
 		},
 		{
 			target: 'onboarding-properties',
@@ -60,10 +60,10 @@
 	let tooltipRight: number | null = $state(null);
 	let arrowSide: 'left' | 'top-right' | 'none' = $state('none');
 
-	onMount(() => {
+	onMount(async () => {
 		if (!localStorage.getItem(STORAGE_KEY)) {
+			await positionTooltip();
 			visible = true;
-			positionTooltip();
 		}
 	});
 
@@ -84,11 +84,12 @@
 			tooltipLeft = r.right + 20;
 			tooltipRight = null;
 			arrowSide = 'left';
-		} else if (s.placement === 'below-left') {
-			tooltipTop = r.bottom + 12;
-			tooltipRight = window.innerWidth - r.right - 4;
+		} else if (s.placement === 'right-edge') {
+			// Same vertical centre as the target element, pinned to the right edge of the viewport
+			tooltipTop = r.top + r.height / 2;
+			tooltipRight = 16;
 			tooltipLeft = 0;
-			arrowSide = 'top-right';
+			arrowSide = 'none';
 		}
 	}
 
@@ -184,16 +185,6 @@
 					<div class="h-0 w-0 border-y-[8px] border-r-[9px] border-y-transparent border-r-white/10"></div>
 					<!-- fill -->
 					<div class="absolute left-[1px] top-1/2 h-0 w-0 -translate-y-1/2 border-y-[7px] border-r-[8px] border-y-transparent border-r-[#111111]"></div>
-				</div>
-			{/if}
-
-			<!-- Arrow: points up-right (tooltip is below the user menu button) -->
-			{#if arrowSide === 'top-right'}
-				<div class="absolute -top-[9px] right-4">
-					<!-- border outline -->
-					<div class="h-0 w-0 border-b-[9px] border-x-[8px] border-b-white/10 border-x-transparent"></div>
-					<!-- fill -->
-					<div class="absolute left-1/2 top-[1px] h-0 w-0 -translate-x-1/2 border-b-[8px] border-x-[7px] border-b-[#111111] border-x-transparent"></div>
 				</div>
 			{/if}
 

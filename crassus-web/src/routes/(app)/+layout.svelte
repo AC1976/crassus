@@ -5,6 +5,7 @@
 	import { getToken } from '$lib/api/client';
 	import { page } from '$app/stores';
 	import UserMenu from '$lib/components/UserMenu.svelte';
+	import Onboarding from '$lib/components/Onboarding.svelte';
 
 	const { children } = $props();
 
@@ -14,30 +15,30 @@
 		{
 			group: null,
 			items: [
-				{ href: '/dashboard', label: 'Dashboard' },
+				{ href: '/dashboard',  label: 'Dashboard',   onboarding: null },
 			],
 		},
 		{
 			group: 'Administration',
 			items: [
-				{ href: '/properties', label: 'Properties' },
-				{ href: '/units',      label: 'Units' },
-				{ href: '/lessees',    label: 'Lessees' },
-				{ href: '/agreements', label: 'Agreements' },
+				{ href: '/properties', label: 'Properties',  onboarding: 'onboarding-properties' },
+				{ href: '/units',      label: 'Units',        onboarding: null },
+				{ href: '/lessees',    label: 'Lessees',      onboarding: 'onboarding-lessees' },
+				{ href: '/agreements', label: 'Agreements',   onboarding: 'onboarding-agreements' },
 			],
 		},
 		{
 			group: 'Operations',
 			items: [
-				{ href: '/invoices',  label: 'Invoices' },
-				{ href: '/expenses',  label: 'Expenses' },
-				{ href: '/vat',       label: 'VAT Report' },
+				{ href: '/invoices',   label: 'Invoices',    onboarding: null },
+				{ href: '/expenses',   label: 'Expenses',    onboarding: null },
+				{ href: '/vat',        label: 'VAT Report',  onboarding: null },
 			],
 		},
 		{
 			group: null,
 			items: [
-				{ href: '/documents', label: 'Documents' },
+				{ href: '/documents',  label: 'Documents',   onboarding: 'onboarding-documents' },
 			],
 		},
 	];
@@ -80,6 +81,7 @@
 					{#each section.items as item}
 						<a
 							href={item.href}
+							data-onboarding={item.onboarding ?? undefined}
 							class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-100
 								{isActive(item.href)
 								? 'bg-white/10 text-white font-medium'
@@ -122,3 +124,5 @@
 		</main>
 	</div>
 </div>
+
+<Onboarding />

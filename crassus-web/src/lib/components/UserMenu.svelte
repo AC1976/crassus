@@ -24,6 +24,7 @@
 <div class="relative">
 	<button
 		onclick={toggle}
+		data-onboarding="onboarding-settings"
 		class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition hover:bg-white/5"
 	>
 		<div class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-bold text-white">

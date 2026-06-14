@@ -175,8 +175,8 @@ Creates a single invoice manually. Validates:
 ### `PATCH /invoices/{invoice_id}` — owner/editor
 Partial update of an invoice.
 
-### `GET /invoices/next-period?agreement_uuid=` — authenticated
-Computes the next billing period for a given agreement. Finds the latest standard invoice by `billing_period_end`. If one exists, the next period starts the day after its end. If no invoices exist, fast-forwards from `valid_time_start` until the period start is in the future (i.e., returns the genuinely upcoming billing period). Returns period dates, amounts (net/VAT/gross), and a suggested invoice number.
+### `GET /invoices/check-period?agreement_uuid=&billing_period_start=&billing_period_end=` — authenticated
+Checks whether a standard invoice already exists for the given agreement and exact billing period. Used by the manual invoice modal to warn when the user enters dates that overlap a previously issued invoice. Returns `already_invoiced` (bool), and if true, also `invoice_id` and `invoice_number`.
 
 ### `POST /invoices/batch-preview` — owner/editor
 Previews the set of invoices to generate for a selected billing month. The frontend sends `reference_date` = last day of the selected month (e.g., `2026-07-31` for July 2026).
@@ -186,7 +186,7 @@ Logic per active agreement:
 2. Queries the DB directly: does a standard invoice already exist for this agreement with exactly this `billing_period_start` and `billing_period_end`?
 3. If yes → `already_invoiced = true`. If no → ready to generate.
 
-Also pre-allocates sequential invoice numbers in-memory (without committing) so the preview shows the correct numbers. For `property_ref` scheme, derives numbers from the property reference field.
+Also pre-allocates invoice numbers in-memory (without committing) so the preview shows correct, non-colliding numbers. For `property_ref` scheme, derives numbers from the property reference field; falls back to the in-memory sequential counter for any property that has no `property_reference` set — ensuring no two preview rows share the same number.
 
 Returns a `BatchPreviewRow` per active agreement including amounts, labels, target period, suggested invoice number, and `already_invoiced` flag.
 

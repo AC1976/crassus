@@ -201,20 +201,19 @@ def batch_preview(
     scheme = _org_scheme(db, current_user.org_id)
     year = today.year
     prefix = f"INV-{year}-"
-    seq = 1
-    if scheme == "sequential":
-        existing_nums = (
-            db.query(Invoice.invoice_number)
-            .filter(Invoice.org_id == current_user.org_id, Invoice.invoice_number.like(f"{prefix}%"))
-            .all()
-        )
-        max_seq = 0
-        for (num,) in existing_nums:
-            try:
-                max_seq = max(max_seq, int(num[len(prefix):]))
-            except (ValueError, IndexError):
-                pass
-        seq = max_seq + 1
+    # Always compute seq — needed for sequential scheme and property_ref fallbacks
+    existing_nums = (
+        db.query(Invoice.invoice_number)
+        .filter(Invoice.org_id == current_user.org_id, Invoice.invoice_number.like(f"{prefix}%"))
+        .all()
+    )
+    max_seq = 0
+    for (num,) in existing_nums:
+        try:
+            max_seq = max(max_seq, int(num[len(prefix):]))
+        except (ValueError, IndexError):
+            pass
+    seq = max_seq + 1
 
     rows: List[BatchPreviewRow] = []
     for agreement in agreements:
@@ -265,10 +264,18 @@ def batch_preview(
         vat = (net * Decimal(str(agreement.vat_rate_applied)) / Decimal("100")).quantize(Decimal("0.01"))
         gross = net + vat
 
+        uses_seq = False
         if scheme == "property_ref":
-            suggested = _property_ref_number(db, current_user.org_id, agreement.agreement_uuid, period_start)
+            # Check if the property has a reference set; fall back to sequential if not
+            prop_ref = property_obj.property_reference if property_obj else None
+            if prop_ref:
+                suggested = f"{prop_ref}/{period_start.year}/{period_start.month:02d}"
+            else:
+                suggested = f"{prefix}{seq:04d}"
+                uses_seq = True
         else:
             suggested = f"{prefix}{seq:04d}"
+            uses_seq = True
 
         rows.append(BatchPreviewRow(
             agreement_uuid=agreement.agreement_uuid,
@@ -283,7 +290,7 @@ def batch_preview(
             suggested_invoice_number=suggested,
             already_invoiced=already_invoiced,
         ))
-        if not already_invoiced and scheme == "sequential":
+        if not already_invoiced and uses_seq:
             seq += 1
 
     return rows

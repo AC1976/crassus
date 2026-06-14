@@ -16,6 +16,8 @@ from auth import get_current_user, require_role
 from config import settings as app_settings
 from database import get_db
 from models import Document, Invoice, Lessee, Payment, Property, RentalAgreement, Settings, Unit, User
+from pydantic import BaseModel
+
 from schemas import (
     BatchGenerateRequest,
     BatchPreviewRequest,
@@ -23,7 +25,6 @@ from schemas import (
     InvoiceCreate,
     InvoiceRead,
     InvoiceUpdate,
-    NextPeriodResponse,
     RecordPaymentRequest,
     SendInvoiceRequest,
 )
@@ -348,64 +349,39 @@ def batch_generate(
     return created
 
 
-@router.get("/next-period", response_model=NextPeriodResponse)
-def get_next_period(
+
+class CheckPeriodResponse(BaseModel):
+    already_invoiced: bool
+    invoice_id: int | None = None
+    invoice_number: str | None = None
+
+
+@router.get("/check-period", response_model=CheckPeriodResponse)
+def check_period(
     agreement_uuid: str,
+    billing_period_start: date,
+    billing_period_end: date,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> NextPeriodResponse:
-    agreement = (
-        db.query(RentalAgreement)
-        .filter(
-            RentalAgreement.agreement_uuid == agreement_uuid,
-            RentalAgreement.org_id == current_user.org_id,
-        )
-        .first()
-    )
-    if not agreement:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agreement not found.")
-
-    # Find the latest standard invoice for this agreement
-    latest = (
+) -> CheckPeriodResponse:
+    existing = (
         db.query(Invoice)
         .filter(
             Invoice.agreement_uuid == agreement_uuid,
             Invoice.org_id == current_user.org_id,
             Invoice.invoice_type == "standard",
+            Invoice.billing_period_start == billing_period_start,
+            Invoice.billing_period_end == billing_period_end,
         )
-        .order_by(Invoice.billing_period_end.desc())
         .first()
     )
-
-    if latest:
-        period_start = latest.billing_period_end + timedelta(days=1)
-    else:
-        # No invoices yet — fast-forward to the next period whose start is in the future
-        period_start = agreement.valid_time_start.date()
-        today = date.today()
-        while period_start <= today:
-            period_start = _period_end(period_start, agreement.payment_interval) + timedelta(days=1)
-
-    period_end = _period_end(period_start, agreement.payment_interval)
-    due_date = period_start - timedelta(days=1)
-
-    net = Decimal(str(agreement.base_rent_amount)) + Decimal(str(agreement.service_charges))
-    vat = (net * Decimal(str(agreement.vat_rate_applied)) / Decimal("100")).quantize(Decimal("0.01"))
-    gross = net + vat
-
-    return NextPeriodResponse(
-        billing_period_start=period_start,
-        billing_period_end=period_end,
-        due_date=due_date,
-        net_amount=net,
-        vat_amount=vat,
-        gross_amount=gross,
-        suggested_invoice_number=_next_invoice_number(
-            db, current_user.org_id,
-            agreement_uuid=agreement.agreement_uuid,
-            billing_period_start=period_start,
-        ),
-    )
+    if existing:
+        return CheckPeriodResponse(
+            already_invoiced=True,
+            invoice_id=existing.id,
+            invoice_number=existing.invoice_number,
+        )
+    return CheckPeriodResponse(already_invoiced=False)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)

@@ -17,10 +17,10 @@
 		gross_amount: string; invoice_status: string; created_at: string;
 		pdf_s3_key: string | null;
 	};
-	type NextPeriod = {
-		billing_period_start: string; billing_period_end: string; due_date: string;
-		net_amount: string; vat_amount: string; gross_amount: string;
-		suggested_invoice_number: string;
+	type CheckPeriodResult = {
+		already_invoiced: boolean;
+		invoice_id: number | null;
+		invoice_number: string | null;
 	};
 
 	let agreements: Agreement[] = $state([]);
@@ -40,6 +40,8 @@
 		period_start: string; period_end: string;
 		net: string; vat: string; gross: string;
 	} | null>(null);
+	let periodCheckResult = $state<CheckPeriodResult | null>(null);
+	let periodChecking = $state(false);
 
 	// Pay modal
 	let showPayModal = $state(false);
@@ -274,26 +276,53 @@
 	}
 	if (browser) load();
 
-	async function openGenerateModal(a: Agreement) {
+	function openGenerateModal(a: Agreement) {
 		selectedAgreement = a;
 		generateError = '';
-		genForm = null;
+		periodCheckResult = null;
+		const net = parseFloat(a.base_rent_amount) + parseFloat(a.service_charges);
+		const vat = net * parseFloat(a.vat_rate_applied) / 100;
+		genForm = {
+			invoice_number: '',
+			issue_date: today,
+			due_date: '',
+			period_start: '',
+			period_end: '',
+			net: net.toFixed(2),
+			vat: vat.toFixed(2),
+			gross: (net + vat).toFixed(2),
+		};
 		showGenerateModal = true;
+	}
+
+	async function checkPeriod() {
+		if (!selectedAgreement || !genForm?.period_start || !genForm?.period_end) {
+			periodCheckResult = null;
+			return;
+		}
+		periodChecking = true;
+		periodCheckResult = null;
 		try {
-			const np = await api.get<NextPeriod>(`/invoices/next-period?agreement_uuid=${a.agreement_uuid}`);
-			// Single atomic assignment — reliable in Svelte 5
-			genForm = {
-				invoice_number: np.suggested_invoice_number,
-				issue_date: today,
-				due_date: String(np.due_date),
-				period_start: String(np.billing_period_start),
-				period_end: String(np.billing_period_end),
-				net: String(np.net_amount),
-				vat: String(np.vat_amount),
-				gross: String(np.gross_amount),
-			};
-		} catch (e: unknown) {
-			generateError = e instanceof Error ? e.message : 'Failed to load period data.';
+			periodCheckResult = await api.get<CheckPeriodResult>(
+				`/invoices/check-period?agreement_uuid=${selectedAgreement.agreement_uuid}&billing_period_start=${genForm.period_start}&billing_period_end=${genForm.period_end}`
+			);
+		} catch {
+			periodCheckResult = null;
+		} finally {
+			periodChecking = false;
+		}
+	}
+
+	async function previewInvoiceById(invoiceId: number) {
+		try {
+			const { html } = await api.get<{ html: string }>(`/invoices/${invoiceId}/preview`);
+			const blob = new Blob([html], { type: 'text/html' });
+			const url = URL.createObjectURL(blob);
+			const win = window.open(url, '_blank');
+			setTimeout(() => URL.revokeObjectURL(url), 10000);
+			if (!win) alert('Allow pop-ups to preview invoices.');
+		} catch (err: unknown) {
+			alert(err instanceof Error ? err.message : 'Preview failed.');
 		}
 	}
 
@@ -569,29 +598,13 @@
 			{/if}
 		</div>
 
-		{#if !genForm && !generateError}
-			<div class="flex items-center justify-center py-12">
-				<div class="h-5 w-5 animate-spin rounded-full border-2 border-white/10 border-t-indigo-400"></div>
-			</div>
-		{:else if generateError}
-			<div class="p-6">
-				<div class="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
-					<p class="text-sm text-red-400">{generateError}</p>
-				</div>
-				<div class="mt-4 flex justify-end">
-					<button onclick={() => (showGenerateModal = false)}
-						class="rounded-xl border border-white/10 px-5 py-2 text-sm text-white/50 hover:text-white transition-colors">
-						Close
-					</button>
-				</div>
-			</div>
-		{:else if genForm}
+		{#if genForm}
 			<form onsubmit={handleGenerate}>
 				<div class="space-y-4 p-6">
 					<div class="grid grid-cols-2 gap-4">
 						<div class="col-span-2">
 							<label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/40">Invoice Number</label>
-							<input type="text" bind:value={genForm.invoice_number} required class={inputClass} />
+							<input type="text" bind:value={genForm.invoice_number} required placeholder="e.g. INV-2026-0001" class={inputClass} />
 						</div>
 						<div>
 							<label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/40">Issue Date</label>
@@ -603,13 +616,31 @@
 						</div>
 						<div>
 							<label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/40">Period Start</label>
-							<input type="date" bind:value={genForm.period_start} required class={inputClass} />
+							<input type="date" bind:value={genForm.period_start} required class={inputClass}
+								onchange={checkPeriod} />
 						</div>
 						<div>
 							<label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/40">Period End</label>
-							<input type="date" bind:value={genForm.period_end} required class={inputClass} />
+							<input type="date" bind:value={genForm.period_end} required class={inputClass}
+								onchange={checkPeriod} />
 						</div>
 					</div>
+
+					<!-- Period conflict warning -->
+					{#if periodChecking}
+						<p class="text-xs text-white/30">Checking period…</p>
+					{:else if periodCheckResult?.already_invoiced}
+						<div class="flex items-start justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+							<p class="text-sm text-amber-400">
+								This period is already covered by invoice <strong>{periodCheckResult.invoice_number}</strong>.
+							</p>
+							<button type="button"
+								onclick={() => previewInvoiceById(periodCheckResult!.invoice_id!)}
+								class="shrink-0 text-xs text-amber-400/70 hover:text-amber-300 transition-colors whitespace-nowrap">
+								Preview →
+							</button>
+						</div>
+					{/if}
 
 					<div class="rounded-xl border border-white/[0.07] bg-[#1a1a1a] p-4">
 						<div class="grid grid-cols-3 gap-4">
@@ -627,6 +658,12 @@
 							</div>
 						</div>
 					</div>
+
+					{#if generateError}
+						<div class="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+							<p class="text-sm text-red-400">{generateError}</p>
+						</div>
+					{/if}
 				</div>
 
 				<div class="flex justify-end gap-3 border-t border-white/[0.07] px-6 py-4">

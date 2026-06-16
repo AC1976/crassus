@@ -31,14 +31,14 @@ def _priority(status: str) -> int:
         return -1
 
 
-def _verify_signature(request_body: bytes, svix_signature: str, svix_timestamp: str) -> bool:
+def _verify_signature(request_body: bytes, svix_id: str, svix_timestamp: str, svix_signature: str) -> bool:
     """Verify Resend webhook signature (Svix format)."""
     if not RESEND_WEBHOOK_SECRET:
         return True  # Skip verification in dev if secret not configured
     secret = RESEND_WEBHOOK_SECRET.removeprefix("whsec_")
     import base64
     secret_bytes = base64.b64decode(secret)
-    signed_content = f"{svix_timestamp}.{request_body.decode()}".encode()
+    signed_content = f"{svix_id}.{svix_timestamp}.{request_body.decode()}".encode()
     expected = hmac.new(key=secret_bytes, msg=signed_content, digestmod=hashlib.sha256).digest()
     expected_b64 = base64.b64encode(expected).decode()
     # Svix sends comma-separated list of "v1,<sig>" pairs
@@ -54,7 +54,7 @@ async def resend_webhook(request: Request, db: Session = Depends(get_db)) -> Non
     svix_timestamp = request.headers.get("svix-timestamp", "")
     svix_signature = request.headers.get("svix-signature", "")
 
-    if RESEND_WEBHOOK_SECRET and not _verify_signature(body, svix_signature, svix_timestamp):
+    if RESEND_WEBHOOK_SECRET and not _verify_signature(body, svix_id, svix_timestamp, svix_signature):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature.")
 
     try:

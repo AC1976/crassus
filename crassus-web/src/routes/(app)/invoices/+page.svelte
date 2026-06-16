@@ -63,7 +63,14 @@
 
 	// Actions dropdown
 	let openActionId: number | null = $state(null);
-	function toggleAction(id: number) { openActionId = openActionId === id ? null : id; }
+	let dropdownPos: { top: number; right: number } = $state({ top: 0, right: 0 });
+
+	function toggleAction(id: number, event: MouseEvent) {
+		if (openActionId === id) { openActionId = null; return; }
+		const btn = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		dropdownPos = { top: btn.bottom + window.scrollY + 4, right: window.innerWidth - btn.right };
+		openActionId = id;
+	}
 	function closeAction() { openActionId = null; }
 
 	// ── Batch billing ──────────────────────────────────────────────────────
@@ -617,9 +624,9 @@
 							{/if}
 						</td>
 						<td class="px-5 py-4 text-right">
-							<div class="relative inline-block">
+							<div class="inline-block">
 								<button
-									onclick={() => toggleAction(inv.id)}
+									onclick={(e) => toggleAction(inv.id, e)}
 									class="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/20 hover:text-white/80"
 								>
 									Actions ▾
@@ -631,7 +638,8 @@
 										onclick={closeAction}
 										onkeydown={() => {}}
 									></div>
-									<div class="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl">
+									<div class="fixed z-50 w-64 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl"
+										style="top: {dropdownPos.top}px; right: {dropdownPos.right}px;">
 										<!-- Preview -->
 										<button onclick={() => { previewInvoiceById(inv.id); closeAction(); }}
 											class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">

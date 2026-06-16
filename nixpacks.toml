@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = [
+    "python311",
+    "gobject-introspection",
+    "cairo",
+    "pango",
+    "gdk-pixbuf",
+    "libffi",
+    "fontconfig",
+    "freetype",
+]

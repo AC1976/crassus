@@ -518,13 +518,13 @@
 <svelte:window onclick={closeAction} />
 
 <!-- Page header -->
-<div class="mb-8 flex items-start justify-between">
+<div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 	<div>
 		<h2 class="text-2xl font-semibold text-white">Invoices</h2>
 		<p class="mt-1 text-sm text-white/40">Generate, track, and manage invoices</p>
 	</div>
 	<button onclick={openBatchModal}
-		class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors">
+		class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors sm:w-auto">
 		⚡ Run Batch Billing
 	</button>
 </div>
@@ -537,7 +537,8 @@
 			<p class="text-sm text-white/30">No active leases found.</p>
 		</div>
 	{:else}
-		<div class="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111]">
+		<!-- Desktop table -->
+		<div class="hidden overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] sm:block">
 			<table class="w-full text-sm">
 				<thead><tr class="border-b border-white/[0.07]">
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Unit</th>
@@ -566,17 +567,42 @@
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Mobile cards -->
+		<div class="space-y-3 sm:hidden">
+			{#each activeAgreements as a}
+			<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-4">
+				<div class="flex items-start justify-between gap-3">
+					<div class="min-w-0">
+						<p class="font-medium text-white truncate">{unitLabel(a)}</p>
+						<p class="mt-0.5 text-sm text-white/50 truncate">{lesseeLabel(a.lessee_uuid)}</p>
+					</div>
+					<p class="shrink-0 font-medium text-white">€ {Number(a.base_rent_amount).toLocaleString()}</p>
+				</div>
+				<div class="mt-3 flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="rounded-md bg-white/5 px-2 py-1 text-xs capitalize text-white/60">{a.payment_interval}</span>
+						<span class="text-xs text-white/30">until {a.valid_time_end.slice(0,10)}</span>
+					</div>
+					<button onclick={() => openGenerateModal(a)}
+						class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors">
+						Generate
+					</button>
+				</div>
+			</div>
+			{/each}
+		</div>
 	{/if}
 </div>
 
 <!-- Invoice ledger -->
 <div>
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<h3 class="text-xs font-semibold uppercase tracking-wider text-white/30">Invoice Ledger</h3>
-		<div class="flex gap-1 rounded-xl bg-[#1a1a1a] p-1">
+		<div class="flex gap-1 overflow-x-auto rounded-xl bg-[#1a1a1a] p-1">
 			{#each [['active','Pending / Overdue'],['paid','Paid'],['credited','Credited'],['all','All']] as [val, label]}
 				<button onclick={() => (statusFilter = val)}
-					class="rounded-lg px-3 py-1.5 text-xs font-medium transition
+					class="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition
 						{statusFilter === val ? 'bg-[#2a2a2a] text-white' : 'text-white/40 hover:text-white/70'}">
 					{label}
 				</button>
@@ -589,7 +615,8 @@
 			<p class="text-sm text-white/30">No invoices in this category.</p>
 		</div>
 	{:else}
-		<div class="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111]">
+		<!-- Desktop table -->
+		<div class="hidden overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111] sm:block">
 			<table class="w-full text-sm">
 				<thead><tr class="border-b border-white/[0.07]">
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Number / Lessee</th>
@@ -647,7 +674,6 @@
 										style="top: {dropdownPos.top}px; right: {dropdownPos.right}px;"
 										onclick={(e) => e.stopPropagation()}
 										onkeydown={() => {}}>
-										<!-- Preview -->
 										<button onclick={() => { previewInvoiceById(inv.id); closeAction(); }}
 											class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
 											<span class="mt-0.5 text-sm">🔍</span>
@@ -657,7 +683,6 @@
 											</div>
 										</button>
 										{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
-											<!-- Send / Reminder -->
 											<button onclick={() => { handleSend(inv); closeAction(); }}
 												disabled={sending && sendingInvoice?.id === inv.id}
 												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5 disabled:opacity-40">
@@ -667,7 +692,6 @@
 													<p class="text-[11px] text-white/40">{inv.pdf_s3_key ? 'Send email to remind lessee of overdue payment.' : 'Email this invoice as a PDF to the lessee.'}</p>
 												</div>
 											</button>
-											<!-- Pay -->
 											<button onclick={() => { openPayModal(inv); closeAction(); }}
 												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
 												<span class="mt-0.5 text-sm">✅</span>
@@ -676,7 +700,6 @@
 													<p class="text-[11px] text-white/40">Mark invoice as paid.</p>
 												</div>
 											</button>
-											<!-- Credit -->
 											<button onclick={() => { handleCredit(inv); closeAction(); }}
 												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
 												<span class="mt-0.5 text-sm">↩️</span>
@@ -687,7 +710,6 @@
 											</button>
 										{/if}
 										{#if inv.pdf_s3_key}
-											<!-- Download PDF -->
 											<button onclick={() => { handleDownload(inv); closeAction(); }}
 												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
 												<span class="mt-0.5 text-sm">⬇️</span>
@@ -699,7 +721,6 @@
 										{/if}
 										{#if inv.invoice_status === 'pending'}
 											<div class="border-t border-white/[0.07]"></div>
-											<!-- Delete -->
 											<button onclick={() => { handleDeleteInvoice(inv); closeAction(); }}
 												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-red-500/10">
 												<span class="mt-0.5 text-sm">🗑️</span>
@@ -718,13 +739,86 @@
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Mobile cards -->
+		<div class="space-y-3 sm:hidden">
+			{#each filteredInvoices as inv}
+			{@const lessee = lesseeLabel(agreements.find((a) => a.agreement_uuid === inv.agreement_uuid)?.lessee_uuid ?? '')}
+			<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-4">
+				<!-- Row 1: invoice number + amount -->
+				<div class="flex items-start justify-between gap-2">
+					<div class="min-w-0">
+						<p class="font-medium text-white">{inv.invoice_number}</p>
+						<p class="mt-0.5 text-xs text-white/40 truncate">{lessee}</p>
+						{#if inv.invoice_type === 'credit_note'}
+							<span class="text-xs text-amber-400/70">Credit Note</span>
+						{/if}
+					</div>
+					<p class="shrink-0 font-semibold {Number(inv.gross_amount) < 0 ? 'text-red-400' : 'text-white'}">
+						€ {Number(inv.gross_amount).toLocaleString('en', {minimumFractionDigits: 2})}
+					</p>
+				</div>
+
+				<!-- Row 2: badges -->
+				<div class="mt-3 flex flex-wrap items-center gap-2">
+					<span class="rounded-md px-2 py-1 text-xs capitalize {statusBadge[inv.invoice_status] ?? 'bg-white/5 text-white/40'}">
+						{inv.invoice_status}
+					</span>
+					{#if inv.email_delivery_status === 'delivered'}
+						<span class="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">✓ Delivered</span>
+					{:else if inv.email_delivery_status === 'opened'}
+						<span class="rounded-md bg-indigo-500/10 px-2 py-1 text-xs text-indigo-400">👁 Opened</span>
+					{:else if inv.email_delivery_status === 'bounced'}
+						<span class="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-400">✕ Bounced</span>
+					{:else if inv.email_delivery_status === 'sent'}
+						<span class="rounded-md bg-white/5 px-2 py-1 text-xs text-white/30">Sent</span>
+					{/if}
+					<span class="ml-auto text-xs text-white/30">Due {inv.due_date.slice(0,10)}</span>
+				</div>
+
+				<!-- Row 3: actions -->
+				<div class="mt-3 flex flex-wrap gap-2 border-t border-white/[0.05] pt-3">
+					<button onclick={() => previewInvoiceById(inv.id)}
+						class="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 hover:text-white transition-colors">
+						🔍 Preview
+					</button>
+					{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
+						<button onclick={() => handleSend(inv)} disabled={sending && sendingInvoice?.id === inv.id}
+							class="rounded-lg border border-indigo-500/30 px-3 py-1.5 text-xs text-indigo-400 hover:border-indigo-500/60 disabled:opacity-40 transition-colors">
+							📨 {inv.pdf_s3_key ? 'Remind' : 'Send'}
+						</button>
+						<button onclick={() => openPayModal(inv)}
+							class="rounded-lg border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-400 hover:border-emerald-500/60 transition-colors">
+							✅ Pay
+						</button>
+						<button onclick={() => handleCredit(inv)}
+							class="rounded-lg border border-amber-500/30 px-3 py-1.5 text-xs text-amber-400 hover:border-amber-500/60 transition-colors">
+							↩️ Credit
+						</button>
+					{/if}
+					{#if inv.pdf_s3_key}
+						<button onclick={() => handleDownload(inv)}
+							class="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 hover:text-white transition-colors">
+							⬇️ PDF
+						</button>
+					{/if}
+					{#if inv.invoice_status === 'pending'}
+						<button onclick={() => handleDeleteInvoice(inv)}
+							class="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-400 hover:border-red-500/40 transition-colors">
+							🗑️ Delete
+						</button>
+					{/if}
+				</div>
+			</div>
+			{/each}
+		</div>
 	{/if}
 </div>
 
 <!-- Generate Invoice Modal -->
 {#if showGenerateModal}
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-	<div class="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
+<div class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+	<div class="w-full max-w-2xl rounded-t-2xl border border-white/10 bg-[#111111] shadow-2xl sm:rounded-2xl">
 		<div class="border-b border-white/[0.07] px-6 py-4">
 			<h3 class="text-base font-semibold text-white">Generate Invoice</h3>
 			{#if selectedAgreement}
@@ -735,8 +829,8 @@
 		{#if genForm}
 			<form onsubmit={handleGenerate}>
 				<div class="space-y-4 p-6">
-					<div class="grid grid-cols-2 gap-4">
-						<div class="col-span-2">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<div class="sm:col-span-2">
 							<label class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/40">Invoice Number</label>
 							<input type="text" bind:value={genForm.invoice_number} required placeholder="e.g. INV-2026-0001" class={inputClass} />
 						</div>
@@ -818,8 +912,8 @@
 
 <!-- Mark as Paid Modal -->
 {#if showPayModal && payingInvoice}
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-	<div class="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
+<div class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+	<div class="w-full max-w-xl rounded-t-2xl border border-white/10 bg-[#111111] shadow-2xl sm:rounded-2xl">
 		<div class="border-b border-white/[0.07] px-6 py-4">
 			<h3 class="text-base font-semibold text-white">Record Payment</h3>
 			<p class="mt-0.5 text-sm text-white/40">{payingInvoice.invoice_number} · € {Number(payingInvoice.gross_amount).toLocaleString('en', {minimumFractionDigits: 2})}</p>
@@ -959,8 +1053,8 @@
 					<p class="text-sm text-white/30">No active leases found for this period.</p>
 				</div>
 			{:else}
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm">
+				<div class="-mx-6 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+					<table class="w-full min-w-[600px] text-sm">
 						<thead>
 							<tr class="border-b border-white/[0.07]">
 								<th class="pb-3 pr-3 text-left"><input type="checkbox"

@@ -96,7 +96,7 @@ Lists units for the org. Optional `property_id` filter.
 Returns a single unit.
 
 ### `POST /units` — owner/editor
-Creates a unit. Validates that the parent `property_id` belongs to the org, and if `unit_id` is provided on the agreement, that it belongs to the property.
+Creates a unit. Validates that the parent `property_id` belongs to the org.
 
 ### `PATCH /units/{unit_id}` — owner/editor
 Partial update of a unit.
@@ -174,6 +174,9 @@ Creates a single invoice manually. Validates:
 
 ### `PATCH /invoices/{invoice_id}` — owner/editor
 Partial update of an invoice.
+
+### `DELETE /invoices/{invoice_id}` — owner/editor
+Deletes an invoice. Only permitted when `invoice_status == "pending"` — returns 422 for overdue, paid, or credited invoices.
 
 ### `GET /invoices/check-period?agreement_uuid=&billing_period_start=&billing_period_end=` — authenticated
 Checks whether a standard invoice already exists for the given agreement and exact billing period. Used by the manual invoice modal to warn when the user enters dates that overlap a previously issued invoice. Returns `already_invoiced` (bool), and if true, also `invoice_id` and `invoice_number`.
@@ -309,7 +312,7 @@ Creates the settings record (one per org). 409 if already exists.
 Partial update of settings. Key fields include: `company_name`, `company_address`, `company_vat_number`, `billing_email_sender`, `bank_account`, `currency`, `invoice_language`, `invoice_numbering_scheme` (`sequential` or `property_ref`), `vat_consultant_email`, `lease_termination_notice_days`, `logo_s3_key`.
 
 ### `POST /settings/logo` — owner only
-Uploads a logo (PNG, JPEG, or SVG, ≤ no explicit size limit here). Uploads to S3 first; if that succeeds, creates or updates the settings row with `logo_s3_key`. S3 key: `logos/{org_id}/logo.{ext}`.
+Uploads a logo (PNG, JPEG, or SVG). Uploads to S3 first; if that succeeds, creates or updates the settings row with `logo_s3_key`. S3 key: `logos/{org_id}/logo.{ext}`.
 
 ### `DELETE /settings/logo` — owner only
 Deletes the logo from S3 and clears `logo_s3_key` on the settings row.
@@ -345,12 +348,53 @@ Sends a freeform email to the org owner via Resend. Accepts `subject` and `body`
 
 ---
 
+## Webhooks `/v1/webhooks`
+
+### `POST /webhooks/resend` — public (signature-verified)
+Receives event callbacks from Resend and updates `invoice.email_delivery_status` accordingly. No JWT auth — Resend calls this endpoint directly.
+
+Handled event types:
+| Event | Resulting status |
+|---|---|
+| `email.delivered` | `delivered` |
+| `email.opened` | `opened` |
+| `email.bounced` | `bounced` |
+
+Logic:
+1. Verifies the Svix webhook signature using `RESEND_WEBHOOK_SECRET` env var (skipped if not configured, for local dev). Returns 401 on invalid signature.
+2. Extracts `email_id` from the event payload and looks up the matching invoice by `resend_email_id`.
+3. Updates `email_delivery_status` only if the new status has equal or higher priority than the current one (priority order: `unsent` < `sent` < `delivered` < `opened` < `bounced`), preventing out-of-order events from downgrading the status.
+4. Silently ignores unrecognised event types and events with no matching invoice.
+Returns 204 in all non-error cases (Resend requires a 2xx to consider delivery successful).
+
+**Setup:** in the Resend dashboard, add a webhook endpoint pointing to `https://{your-domain}/v1/webhooks/resend`, select `email.delivered`, `email.opened`, and `email.bounced`, then copy the signing secret into the `RESEND_WEBHOOK_SECRET` env var.
+
+---
+
 ## Invoice numbering schemes
 
 Controlled by `Settings.invoice_numbering_scheme`:
 
 - **`sequential`** (default) — `INV-{year}-{0001}`. Sequence is per-year, derived by scanning existing invoice numbers for the current year.
 - **`property_ref`** — `{property_reference}/{year}/{month:02d}`. Falls back to sequential if the property has no `property_reference` set. Credit notes append `/CR` to the parent invoice number.
+
+In batch preview, sequential numbers are pre-allocated in-memory across all rows so no two rows share the same number, including fallback rows under the `property_ref` scheme.
+
+---
+
+## Email delivery status
+
+Tracked on every invoice via `email_delivery_status` (string field, default `unsent`):
+
+| Value | Meaning |
+|---|---|
+| `unsent` | Invoice has not been emailed yet |
+| `sent` | Email dispatched via Resend; awaiting delivery confirmation |
+| `delivered` | Receiving mail server confirmed acceptance |
+| `opened` | Recipient opened the email (pixel tracking) |
+| `bounced` | Delivery failed permanently |
+
+Status is updated by the `/webhooks/resend` endpoint. The frontend polls `/invoices` every 30 seconds to reflect badge changes without a manual refresh.
 
 ---
 

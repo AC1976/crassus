@@ -63,13 +63,22 @@
 
 	// Actions dropdown
 	let openActionId: number | null = $state(null);
-	let dropdownPos: { top: number; right: number } = $state({ top: 0, right: 0 });
+	let dropdownPos: { top: number; right: number; openUp: boolean } = $state({ top: 0, right: 0, openUp: false });
 
 	function toggleAction(id: number, event: MouseEvent) {
 		event.stopPropagation();
 		if (openActionId === id) { openActionId = null; return; }
 		const btn = (event.currentTarget as HTMLElement).getBoundingClientRect();
-		dropdownPos = { top: btn.bottom + window.scrollY + 4, right: window.innerWidth - btn.right };
+		const dropdownHeight = 320;
+		const spaceBelow = window.innerHeight - btn.bottom;
+		const openUp = spaceBelow < dropdownHeight && btn.top > dropdownHeight;
+		dropdownPos = {
+			top: openUp
+				? btn.top + window.scrollY - dropdownHeight - 4
+				: btn.bottom + window.scrollY + 4,
+			right: window.innerWidth - btn.right,
+			openUp,
+		};
 		openActionId = id;
 	}
 	function closeAction() { openActionId = null; }

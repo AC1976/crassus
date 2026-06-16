@@ -88,10 +88,34 @@
 		indexations: IndexationRow[];
 	};
 
+	type Invoice = {
+		id: number;
+		invoice_number: string;
+		agreement_uuid: string;
+		invoice_type: string;
+		invoice_status: string;
+		billing_period_start: string;
+		billing_period_end: string;
+		due_date: string;
+		gross_amount: string;
+		email_delivery_status: string;
+	};
+
+	type Agreement = { agreement_uuid: string; lessee_uuid: string; };
+	type Lessee = { lessee_uuid: string; first_name: string | null; last_name: string | null; company_legal_name: string | null; email: string; };
+
 	// ── State ─────────────────────────────────────────────────────────────────
 
 	let data: Dashboard | null = $state(null);
 	let loading = $state(true);
+
+	// Invoice mini-ledger data
+	let invoices: Invoice[] = $state([]);
+	let agreements: Agreement[] = $state([]);
+	let lessees: Lessee[] = $state([]);
+
+	// Invoice list modal ('pending' | 'overdue' | null)
+	let invoiceModal: 'pending' | 'overdue' | null = $state(null);
 
 	// Payment detail modal
 	type ModalContext = { point: PaymentPoint; property_name: string; unit_number: string; lessee_name: string };
@@ -176,10 +200,34 @@
 	// ── Load ──────────────────────────────────────────────────────────────────
 
 	if (browser) {
-		api.get<Dashboard>('/dashboard')
-			.then((d) => { data = d; })
-			.finally(() => { loading = false; });
+		Promise.all([
+			api.get<Dashboard>('/dashboard'),
+			api.get<Invoice[]>('/invoices'),
+			api.get<Agreement[]>('/rental-agreements'),
+			api.get<Lessee[]>('/lessees'),
+		]).then(([d, inv, agr, les]) => {
+			data = d;
+			invoices = inv;
+			agreements = agr;
+			lessees = les;
+		}).finally(() => { loading = false; });
 	}
+
+	function lesseeName(agreement_uuid: string): string {
+		const agr = agreements.find(a => a.agreement_uuid === agreement_uuid);
+		if (!agr) return '—';
+		const l = lessees.find(l => l.lessee_uuid === agr.lessee_uuid);
+		if (!l) return '—';
+		return l.company_legal_name || [l.first_name, l.last_name].filter(Boolean).join(' ') || l.email;
+	}
+
+	const emailBadge: Record<string, { label: string; cls: string }> = {
+		unsent:    { label: 'Not sent',  cls: 'bg-white/5 text-white/30' },
+		sent:      { label: 'Sent',      cls: 'bg-white/5 text-white/30' },
+		delivered: { label: '✓ Delivered', cls: 'bg-emerald-500/10 text-emerald-400' },
+		opened:    { label: '👁 Opened',   cls: 'bg-indigo-500/10 text-indigo-400' },
+		bounced:   { label: '✕ Bounced',   cls: 'bg-red-500/10 text-red-400' },
+	};
 
 	// ── Chart ─────────────────────────────────────────────────────────────────
 
@@ -378,17 +426,17 @@
 <!-- ── Row 1: Stat cards ───────────────────────────────────────────────── -->
 <div class="grid grid-cols-4 gap-4 mb-4">
 
-	<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-5">
+	<button onclick={() => invoiceModal = 'pending'} class="rounded-2xl border border-white/[0.07] bg-[#111111] p-5 text-left transition hover:border-white/[0.12] hover:bg-white/[0.02] w-full">
 		<p class="text-xs font-medium uppercase tracking-wider text-white/30">Pending Invoices</p>
 		<p class="mt-3 text-3xl font-semibold text-white">{data.stats.invoices_pending}</p>
-		<a href="/invoices" class="mt-2 block text-xs text-indigo-400/60 hover:text-indigo-400 transition-colors">View ledger →</a>
-	</div>
+		<p class="mt-2 text-xs text-indigo-400/60">View details →</p>
+	</button>
 
-	<div class="rounded-2xl border {data.stats.invoices_overdue > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-white/[0.07] bg-[#111111]'} p-5">
+	<button onclick={() => invoiceModal = 'overdue'} class="rounded-2xl border {data.stats.invoices_overdue > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-white/[0.07] bg-[#111111]'} p-5 text-left transition hover:border-white/[0.12] hover:bg-white/[0.02] w-full">
 		<p class="text-xs font-medium uppercase tracking-wider {data.stats.invoices_overdue > 0 ? 'text-red-400/60' : 'text-white/30'}">Overdue Invoices</p>
 		<p class="mt-3 text-3xl font-semibold {data.stats.invoices_overdue > 0 ? 'text-red-400' : 'text-white'}">{data.stats.invoices_overdue}</p>
-		<a href="/invoices" class="mt-2 block text-xs text-indigo-400/60 hover:text-indigo-400 transition-colors">View ledger →</a>
-	</div>
+		<p class="mt-2 text-xs text-indigo-400/60">View details →</p>
+	</button>
 
 	<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-5">
 		<p class="text-xs font-medium uppercase tracking-wider text-white/30">Outstanding Balance</p>
@@ -613,6 +661,86 @@
 </div>
 {/if}
 
+{/if}
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- MODAL: Invoice mini-ledger (pending / overdue)                        -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+{#if invoiceModal}
+	{@const rows = invoices.filter(i =>
+		i.invoice_type === 'standard' && i.invoice_status === invoiceModal
+	).sort((a, b) => a.due_date.localeCompare(b.due_date))}
+	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+	<div
+		role="presentation"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+		onclick={() => invoiceModal = null}
+	>
+		<div
+			role="dialog"
+			aria-modal="true"
+			class="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-white/[0.08] bg-[#111111] shadow-2xl"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<!-- Header -->
+			<div class="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
+				<div>
+					<h3 class="text-base font-semibold text-white capitalize">{invoiceModal} Invoices</h3>
+					<p class="mt-0.5 text-xs text-white/30">{rows.length} invoice{rows.length === 1 ? '' : 's'}</p>
+				</div>
+				<button onclick={() => invoiceModal = null} class="text-xl leading-none text-white/30 hover:text-white transition-colors">×</button>
+			</div>
+
+			<!-- Table -->
+			<div class="flex-1 overflow-y-auto">
+				{#if rows.length === 0}
+					<div class="px-6 py-12 text-center">
+						<p class="text-sm text-white/30">No {invoiceModal} invoices.</p>
+					</div>
+				{:else}
+					<table class="w-full text-sm">
+						<thead class="sticky top-0 bg-[#111111]">
+							<tr class="border-b border-white/[0.05]">
+								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Invoice</th>
+								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Lessee</th>
+								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Period</th>
+								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Due</th>
+								<th class="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-white/25">Amount</th>
+								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Email</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each rows as inv}
+								{@const badge = emailBadge[inv.email_delivery_status] ?? emailBadge.unsent}
+								<tr class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+									<td class="px-5 py-3.5 font-medium text-white">{inv.invoice_number}</td>
+									<td class="px-5 py-3.5 text-white/60">{lesseeName(inv.agreement_uuid)}</td>
+									<td class="px-5 py-3.5 text-xs text-white/40">
+										{inv.billing_period_start.slice(0,10)} → {inv.billing_period_end.slice(0,10)}
+									</td>
+									<td class="px-5 py-3.5 text-xs {invoiceModal === 'overdue' ? 'text-red-400' : 'text-white/60'}">
+										{inv.due_date.slice(0,10)}
+									</td>
+									<td class="px-5 py-3.5 text-right font-medium text-white">
+										{fmt(inv.gross_amount)}
+									</td>
+									<td class="px-5 py-3.5">
+										<span class="rounded-md px-2 py-1 text-xs {badge.cls}">{badge.label}</span>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
+			</div>
+
+			<!-- Footer -->
+			<div class="flex items-center justify-between border-t border-white/[0.07] px-6 py-3">
+				<a href="/invoices" class="text-xs text-indigo-400/60 hover:text-indigo-400 transition-colors">Open full ledger →</a>
+				<button onclick={() => invoiceModal = null} class="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/50 hover:text-white transition-colors">Close</button>
+			</div>
+		</div>
+	</div>
 {/if}
 
 <!-- ══════════════════════════════════════════════════════════════════════ -->

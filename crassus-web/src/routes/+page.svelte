@@ -95,6 +95,9 @@
 		<p class="mx-auto mt-6 max-w-xl text-base leading-relaxed text-white/50">
 			Crassus handles invoicing, expenses, VAT reports, lease tracking, and document storage — everything you need to run a rental portfolio, nothing you don't.
 		</p>
+		<p class="mx-auto mt-3 max-w-xl text-base leading-relaxed text-white/50">
+			For our launching customers, Crassus will be free forever.
+		</p>
 
 		<div class="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
 			<a

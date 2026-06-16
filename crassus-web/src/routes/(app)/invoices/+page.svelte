@@ -625,7 +625,7 @@
 											<span class="mt-0.5 text-sm">🔍</span>
 											<div>
 												<p class="text-xs font-medium text-white">Preview</p>
-												<p class="text-[11px] text-white/40">View a rendered preview of this invoice.</p>
+												<p class="text-[11px] text-white/40">View the invoice.</p>
 											</div>
 										</button>
 										{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
@@ -636,7 +636,7 @@
 												<span class="mt-0.5 text-sm">📨</span>
 												<div>
 													<p class="text-xs font-medium text-indigo-400">{inv.pdf_s3_key ? 'Send Reminder' : 'Send'}</p>
-													<p class="text-[11px] text-white/40">{inv.pdf_s3_key ? 'Send a follow-up reminder to the lessee.' : 'Email this invoice as a PDF to the lessee.'}</p>
+													<p class="text-[11px] text-white/40">{inv.pdf_s3_key ? 'Send email to remind lessee of overdue payment.' : 'Email this invoice as a PDF to the lessee.'}</p>
 												</div>
 											</button>
 											<!-- Pay -->
@@ -645,7 +645,7 @@
 												<span class="mt-0.5 text-sm">✅</span>
 												<div>
 													<p class="text-xs font-medium text-emerald-400">Pay</p>
-													<p class="text-[11px] text-white/40">Record a payment received for this invoice.</p>
+													<p class="text-[11px] text-white/40">Mark invoice as paid.</p>
 												</div>
 											</button>
 											<!-- Credit -->
@@ -654,7 +654,7 @@
 												<span class="mt-0.5 text-sm">↩️</span>
 												<div>
 													<p class="text-xs font-medium text-amber-400">Credit</p>
-													<p class="text-[11px] text-white/40">Issue a credit note to reverse this invoice.</p>
+													<p class="text-[11px] text-white/40">Send a credit note for the invoice.</p>
 												</div>
 											</button>
 										{/if}
@@ -665,7 +665,7 @@
 												<span class="mt-0.5 text-sm">⬇️</span>
 												<div>
 													<p class="text-xs font-medium text-white/60">Download PDF</p>
-													<p class="text-[11px] text-white/40">Download the sent invoice PDF.</p>
+													<p class="text-[11px] text-white/40">Download the invoice.</p>
 												</div>
 											</button>
 										{/if}
@@ -677,7 +677,7 @@
 												<span class="mt-0.5 text-sm">🗑️</span>
 												<div>
 													<p class="text-xs font-medium text-red-400">Delete</p>
-													<p class="text-[11px] text-white/40">Permanently remove this draft invoice.</p>
+													<p class="text-[11px] text-white/40">Delete the invoice (if not sent yet).</p>
 												</div>
 											</button>
 										{/if}

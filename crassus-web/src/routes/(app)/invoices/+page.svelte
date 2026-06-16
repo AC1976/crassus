@@ -623,7 +623,7 @@
 <!-- Generate Invoice Modal -->
 {#if showGenerateModal}
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-	<div class="w-full max-w-lg rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
+	<div class="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
 		<div class="border-b border-white/[0.07] px-6 py-4">
 			<h3 class="text-base font-semibold text-white">Generate Invoice</h3>
 			{#if selectedAgreement}
@@ -718,7 +718,7 @@
 <!-- Mark as Paid Modal -->
 {#if showPayModal && payingInvoice}
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-	<div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
+	<div class="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111111] shadow-2xl">
 		<div class="border-b border-white/[0.07] px-6 py-4">
 			<h3 class="text-base font-semibold text-white">Record Payment</h3>
 			<p class="mt-0.5 text-sm text-white/40">{payingInvoice.invoice_number} · € {Number(payingInvoice.gross_amount).toLocaleString('en', {minimumFractionDigits: 2})}</p>

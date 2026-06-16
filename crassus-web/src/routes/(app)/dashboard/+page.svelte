@@ -679,7 +679,7 @@
 		<div
 			role="dialog"
 			aria-modal="true"
-			class="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-white/[0.08] bg-[#111111] shadow-2xl"
+			class="flex max-h-[80vh] w-full max-w-[56rem] flex-col rounded-2xl border border-white/[0.08] bg-[#111111] shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 		>
 			<!-- Header -->

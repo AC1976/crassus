@@ -560,8 +560,9 @@
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Period</th>
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Due</th>
 					<th class="px-5 py-3.5 text-right text-xs font-medium uppercase tracking-wider text-white/30">Amount</th>
-					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Status</th>
-					<th class="px-5 py-3.5"></th>
+					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Payment</th>
+					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Email</th>
+					<th class="px-5 py-3.5 text-right text-xs font-medium uppercase tracking-wider text-white/30">Actions</th>
 				</tr></thead>
 				<tbody>
 					{#each filteredInvoices as inv}
@@ -582,14 +583,18 @@
 							<span class="rounded-md px-2 py-1 text-xs capitalize {statusBadge[inv.invoice_status] ?? 'bg-white/5 text-white/40'}">
 								{inv.invoice_status}
 							</span>
+						</td>
+						<td class="px-5 py-4">
 							{#if inv.email_delivery_status === 'delivered'}
-								<span class="ml-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400" title="Email delivered">✓ Delivered</span>
+								<span class="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">✓ Delivered</span>
 							{:else if inv.email_delivery_status === 'opened'}
-								<span class="ml-1.5 rounded-md bg-indigo-500/10 px-2 py-1 text-xs text-indigo-400" title="Email opened">👁 Opened</span>
+								<span class="rounded-md bg-indigo-500/10 px-2 py-1 text-xs text-indigo-400">👁 Opened</span>
 							{:else if inv.email_delivery_status === 'bounced'}
-								<span class="ml-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-400" title="Email bounced">✕ Bounced</span>
+								<span class="rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-400">✕ Bounced</span>
 							{:else if inv.email_delivery_status === 'sent'}
-								<span class="ml-1.5 rounded-md bg-white/5 px-2 py-1 text-xs text-white/30" title="Email sent, awaiting delivery confirmation">Sent</span>
+								<span class="rounded-md bg-white/5 px-2 py-1 text-xs text-white/30">Sent</span>
+							{:else}
+								<span class="text-xs text-white/20">—</span>
 							{/if}
 						</td>
 						<td class="px-5 py-4 text-right">

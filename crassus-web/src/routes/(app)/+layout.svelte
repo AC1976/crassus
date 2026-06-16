@@ -118,7 +118,7 @@
 		</header>
 
 		<main class="flex-1 overflow-y-auto bg-[#0a0a0a]">
-			<div class="mx-auto max-w-5xl px-8 py-8">
+			<div class="mx-auto max-w-7xl px-8 py-8">
 				{@render children()}
 			</div>
 		</main>

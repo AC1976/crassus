@@ -7,6 +7,7 @@ from typing import Dict, List
 
 import resend
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 from fastapi.responses import JSONResponse
 from i18n import get_translations
 from jinja2 import Environment, FileSystemLoader
@@ -623,7 +624,8 @@ def download_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> JSONResponse:
+) -> Response:
+    import urllib.request as _urllib
     invoice = _get_or_404(db, invoice_id, current_user.org_id)
     if not invoice.pdf_s3_key:
         raise HTTPException(
@@ -631,7 +633,14 @@ def download_invoice(
             detail="No PDF on file for this invoice. Send it first.",
         )
     url = s3_service.presigned_download_url(invoice.pdf_s3_key)
-    return JSONResponse({"url": url, "expires_in": 900})
+    with _urllib.urlopen(url) as resp:
+        pdf_bytes = resp.read()
+    filename = f"{invoice.invoice_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{invoice_id}/preview")

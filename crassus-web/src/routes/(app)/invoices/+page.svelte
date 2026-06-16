@@ -448,10 +448,23 @@
 
 	async function handleDownload(inv: Invoice) {
 		try {
-			const { url } = await api.get<{ url: string }>(`/invoices/${inv.id}/download`);
-			window.open(url, '_blank');
+			const token = getToken();
+			const base = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/v1';
+			const res = await fetch(`${base}/invoices/${inv.id}/download`, {
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
+			});
+			if (!res.ok) throw new Error(await res.text());
+			const blob = await res.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `${inv.invoice_number}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
 		} catch (err: unknown) {
-			alert(err instanceof Error ? err.message : 'Failed to get download link.');
+			alert(err instanceof Error ? err.message : 'Failed to download invoice.');
 		}
 	}
 
@@ -625,7 +638,7 @@
 											<span class="mt-0.5 text-sm">🔍</span>
 											<div>
 												<p class="text-xs font-medium text-white">Preview</p>
-												<p class="text-[11px] text-white/40">View the invoice.</p>
+												<p class="text-[11px] text-white/40">View the invoice in your browser.</p>
 											</div>
 										</button>
 										{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
@@ -665,7 +678,7 @@
 												<span class="mt-0.5 text-sm">⬇️</span>
 												<div>
 													<p class="text-xs font-medium text-white/60">Download PDF</p>
-													<p class="text-[11px] text-white/40">Download the invoice.</p>
+													<p class="text-[11px] text-white/40">Download the invoice PDF directly to your device.</p>
 												</div>
 											</button>
 										{/if}

@@ -19,6 +19,7 @@ from routers import (
     expenses,
     documents,
     vat,
+    webhooks,
 )
 
 models.Base.metadata.create_all(bind=engine)
@@ -48,3 +49,4 @@ app.include_router(expenses.router, prefix=V1)
 app.include_router(documents.router, prefix=V1)
 app.include_router(vat.router, prefix=V1)
 app.include_router(admin.router, prefix=V1)
+app.include_router(webhooks.router, prefix=V1)

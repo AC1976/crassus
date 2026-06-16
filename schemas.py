@@ -274,7 +274,7 @@ class RentalAgreementRead(RentalAgreementCreate):
 
 InvoiceType = Literal["standard", "credit_note"]
 InvoiceStatus = Literal["draft", "pending", "paid", "overdue", "credited"]
-EmailDeliveryStatus = Literal["unsent", "sent", "delivered", "bounced"]
+EmailDeliveryStatus = Literal["unsent", "sent", "delivered", "opened", "bounced"]
 
 
 class InvoiceCreate(BaseModel):

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { onDestroy } from 'svelte';
 	import { api, getToken } from '$lib/api/client';
 
 	type Agreement = {
@@ -16,6 +17,7 @@
 		issue_date: string; due_date: string; net_amount: string; vat_amount: string;
 		gross_amount: string; invoice_status: string; created_at: string;
 		pdf_s3_key: string | null;
+		email_delivery_status: string;
 	};
 	type CheckPeriodResult = {
 		already_invoiced: boolean;
@@ -274,7 +276,15 @@
 		api.get<Lessee[]>('/lessees').then((l) => { lessees = l; });
 		api.get<Invoice[]>('/invoices').then((i) => { invoices = i; });
 	}
-	if (browser) load();
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	if (browser) {
+		load();
+		// Refresh invoice list every 30s so email delivery badges stay current
+		pollTimer = setInterval(() => {
+			api.get<Invoice[]>('/invoices').then((i) => { invoices = i; });
+		}, 30_000);
+	}
+	onDestroy(() => { if (pollTimer) clearInterval(pollTimer); });
 
 	function openGenerateModal(a: Agreement) {
 		selectedAgreement = a;
@@ -572,6 +582,15 @@
 							<span class="rounded-md px-2 py-1 text-xs capitalize {statusBadge[inv.invoice_status] ?? 'bg-white/5 text-white/40'}">
 								{inv.invoice_status}
 							</span>
+							{#if inv.email_delivery_status === 'delivered'}
+								<span class="ml-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400" title="Email delivered">✓ Delivered</span>
+							{:else if inv.email_delivery_status === 'opened'}
+								<span class="ml-1.5 rounded-md bg-indigo-500/10 px-2 py-1 text-xs text-indigo-400" title="Email opened">👁 Opened</span>
+							{:else if inv.email_delivery_status === 'bounced'}
+								<span class="ml-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs text-red-400" title="Email bounced">✕ Bounced</span>
+							{:else if inv.email_delivery_status === 'sent'}
+								<span class="ml-1.5 rounded-md bg-white/5 px-2 py-1 text-xs text-white/30" title="Email sent, awaiting delivery confirmation">Sent</span>
+							{/if}
 						</td>
 						<td class="px-5 py-4 text-right">
 							<button onclick={() => previewInvoiceById(inv.id)} class="mr-3 text-xs text-white/40 hover:text-white/70 transition-colors">Preview</button>

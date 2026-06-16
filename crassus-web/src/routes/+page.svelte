@@ -57,47 +57,6 @@
 		},
 	];
 
-	const plans = [
-		{
-			name: 'Starter',
-			range: '1–3 properties',
-			price: 10,
-			featured: false,
-			features: [
-				'Up to 3 properties',
-				'Unlimited invoices & leases',
-				'Expense tracking',
-				'VAT reports',
-				'Document storage',
-				'Email support',
-			],
-		},
-		{
-			name: 'Growth',
-			range: '4–10 properties',
-			price: 20,
-			featured: true,
-			features: [
-				'Up to 10 properties',
-				'Everything in Starter',
-				'Team member invites',
-				'Role-based access',
-				'Priority support',
-			],
-		},
-		{
-			name: 'Portfolio',
-			range: '11+ properties',
-			price: 50,
-			featured: false,
-			features: [
-				'Unlimited properties',
-				'Everything in Growth',
-				'Multiple team members',
-				'Dedicated onboarding',
-			],
-		},
-	];
 </script>
 
 <svelte:head>
@@ -128,11 +87,6 @@
 
 	<!-- HERO -->
 	<section class="relative mx-auto max-w-5xl px-6 pb-24 pt-36 text-center">
-		<div class="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-3.5 py-1 text-xs font-medium text-indigo-300">
-			<span class="h-1.5 w-1.5 rounded-full bg-indigo-400"></span>
-			Free for 3 months — no credit card required
-		</div>
-
 		<h1 class="mx-auto max-w-3xl text-5xl font-bold leading-[1.1] tracking-tight text-white">
 			Property management<br />
 			<span class="text-white/30">without the spreadsheets.</span>
@@ -147,7 +101,7 @@
 				href="/login"
 				class="rounded-xl bg-indigo-600 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 transition hover:bg-indigo-500 active:bg-indigo-700"
 			>
-				Start free trial
+				Sign in
 			</a>
 			<a
 				href="#features"
@@ -204,61 +158,12 @@
 		</div>
 	</section>
 
-	<!-- PRICING -->
-	<section id="pricing" class="mx-auto max-w-5xl px-6 pb-24">
-		<div class="mb-12 text-center">
-			<h2 class="text-2xl font-bold tracking-tight text-white">Simple, flat pricing</h2>
-			<p class="mt-2 text-sm text-white/40">Pay per year. Cancel any time. First 3 months are on us.</p>
-		</div>
-
-		<div class="grid gap-5 sm:grid-cols-3">
-			{#each plans as plan}
-				<div class="relative flex flex-col rounded-2xl border p-7
-					{plan.featured ? 'border-indigo-500/40 bg-indigo-950/30' : 'border-white/[0.07] bg-[#111111]'}">
-					{#if plan.featured}
-						<div class="absolute -top-3 left-1/2 -translate-x-1/2">
-							<span class="rounded-full bg-indigo-600 px-3 py-0.5 text-xs font-semibold text-white shadow">Most popular</span>
-						</div>
-					{/if}
-
-					<h3 class="mb-1 text-sm font-semibold text-white">{plan.name}</h3>
-					<p class="mb-5 text-xs text-white/40">{plan.range}</p>
-
-					<div class="mb-6 flex items-end gap-1">
-						<span class="text-4xl font-bold tracking-tight text-white">€{plan.price}</span>
-						<span class="mb-1 text-sm text-white/40">/ year</span>
-					</div>
-
-					<ul class="mb-8 flex-1 space-y-2">
-						{#each plan.features as feat}
-							<li class="flex items-start gap-2 text-xs text-white/55">
-								<svg class="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-								</svg>
-								{feat}
-							</li>
-						{/each}
-					</ul>
-
-					<a
-						href="/login"
-						class="block rounded-xl py-2.5 text-center text-sm font-semibold transition
-							{plan.featured
-								? 'bg-indigo-600 text-white hover:bg-indigo-500'
-								: 'border border-white/10 text-white/70 hover:border-white/20 hover:text-white'}"
-					>
-						Start free trial
-					</a>
-				</div>
-			{/each}
-		</div>
-
-		<p class="mt-6 text-center text-xs text-white/25">All plans include a free 3-month trial. No credit card required to start.</p>
-	</section>
-
 	<!-- FOOTER -->
 	<footer class="border-t border-white/[0.06] py-8 text-center">
 		<p class="text-xs text-white/20">© {new Date().getFullYear()} Crassus. All rights reserved.</p>
+		<p class="mt-2">
+			<a href="/privacy" class="text-xs text-white/20 transition hover:text-white/40">Privacy Policy</a>
+		</p>
 	</footer>
 
 </div>

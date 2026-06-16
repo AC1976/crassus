@@ -324,6 +324,7 @@ class InvoiceRead(InvoiceCreate):
     pdf_s3_bucket: Optional[str] = None
     created_at: datetime
     unit_number: Optional[str] = None   # enriched server-side; not a DB column
+    lessee_name: Optional[str] = None   # enriched server-side; not a DB column
 
     model_config = {"from_attributes": True}
 

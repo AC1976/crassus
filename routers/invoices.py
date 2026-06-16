@@ -176,8 +176,15 @@ def list_invoices(
             RentalAgreement.agreement_uuid == inv.agreement_uuid
         ).first()
         unit = db.query(Unit).filter(Unit.id == ag.unit_id).first() if ag else None
+        lessee = db.query(Lessee).filter(
+            Lessee.lessee_uuid == ag.lessee_uuid, Lessee.org_id == current_user.org_id
+        ).first() if ag else None
         row = {c.name: getattr(inv, c.name) for c in inv.__table__.columns}
         row["unit_number"] = unit.unit_number if unit else None
+        if lessee:
+            row["lessee_name"] = lessee.company_legal_name or f"{lessee.first_name or ''} {lessee.last_name or ''}".strip()
+        else:
+            row["lessee_name"] = None
         result.append(row)
     return result
 

@@ -138,51 +138,23 @@ Content-Type: application/json
 
 ## Feature 2 — Send Reminder for Overdue Invoice
 
-Filter the `/invoices` response for `invoice_status == "overdue"`. A reminder reuses the same send endpoint as the initial send — the backend detects it is a reminder based on whether a PDF already exists.
-
-> **Important:** the reminder flow requires a PDF to be generated client-side and sent as base64. This is the same flow the web app uses via `html2pdf.js`. For the iOS app, the simplest approach is to call the preview endpoint to get the rendered HTML, then use a `WKWebView`-to-PDF conversion via `WKWebView.createPDF(configuration:)` (available iOS 14+).
-
-### Step 1: Get rendered HTML for the invoice
+Filter the `/invoices` response for `invoice_status == "overdue"`. The reminder is a single API call — no PDF generation required. The backend composes and sends the full reminder email (with invoice details and bank payment information) entirely server-side.
 
 ```
-GET /invoices/{id}/preview
+POST /invoices/{id}/send-reminder
 Authorization: Bearer <token>
 ```
 
-**Response** — `text/html` — the fully rendered invoice HTML with all styles inline. Render this in a hidden `WKWebView` to produce the PDF.
+No request body required.
 
-### Step 2: Send reminder
-
-```
-POST /invoices/{id}/send
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**Request body**
-
-```json
-{
-  "pdf_base64": "<base64-encoded PDF bytes>",
-  "filename": "INV-2026-0042.pdf",
-  "is_reminder": true
-}
-```
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `pdf_base64` | string | Yes | Base64 of the PDF file |
-| `filename` | string | Yes | Use `invoice_number + ".pdf"` |
-| `is_reminder` | bool | Yes | `true` for reminders |
-
-**Response** — updated `Invoice` object.
+**Response** — updated `Invoice` object with `email_delivery_status: "sent"`.
 
 **Error responses**
 
 | Status | Meaning |
 |--------|---------|
 | 404 | Invoice not found |
-| 422 | Invoice is not in a sendable state |
+| 422 | Invoice is not overdue |
 
 ---
 
@@ -277,27 +249,26 @@ Use `VNDocumentCameraViewController` (VisionKit) to present the system document 
 
 ### Step 2: Extract fields
 
-Send the scanned image to the Claude API for structured extraction:
+Use Apple's **Vision framework** (`VNRecognizeTextRequest`) to perform on-device OCR on the scanned image. This runs fully offline with no API key or per-call cost.
 
-**Model:** `claude-haiku-4-5-20251001` (fast and cheap for extraction tasks)
-
-**Prompt pattern:**
-
-```
-Extract the following fields from this vendor invoice image and return JSON only:
-{
-  "vendor_name": string,
-  "invoice_reference": string or null,
-  "expense_date": "YYYY-MM-DD" or null,
-  "net_amount": decimal string or null,
-  "vat_amount": decimal string or null,
-  "gross_amount": decimal string or null,
-  "description": string
+```swift
+let request = VNRecognizeTextRequest { request, error in
+    let observations = request.results as? [VNRecognizedTextObservation] ?? []
+    let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+    // pass lines to field extraction heuristics
 }
-If a field cannot be determined, return null for it.
+request.recognitionLevel = .accurate
+request.usesLanguageCorrection = true
+try VNImageRequestHandler(cgImage: cgImage).perform([request])
 ```
 
-Send the image as a base64-encoded `image/jpeg` in the Claude API `messages` array alongside the prompt.
+Write lightweight heuristics over the returned text lines to extract:
+- **vendor_name** — typically the first prominent text block at the top
+- **invoice_reference** — lines matching patterns like `INV-`, `Ref:`, `Factuurnummer`
+- **expense_date** — lines matching date formats (`dd/mm/yyyy`, `dd-mm-yyyy`, `Month dd, yyyy`)
+- **gross_amount** — line labelled `Total`, `Totaal`, `Amount due` etc., largest currency value
+- **vat_amount** — line labelled `VAT`, `BTW`, `TVA`
+- **net_amount** — derived as `gross - vat` if not explicitly found
 
 ### Step 3: User review
 
@@ -529,8 +500,4 @@ CrassusApp/
 
 ## Open Questions for Review
 
-1. **Claude API key on mobile** — the expense scanning calls the Claude API directly from the app. This means embedding an API key in the app binary, which is a security risk. Alternative: add a `POST /expenses/extract` backend route that accepts an image and returns extracted fields — the Claude API key stays server-side. Recommended if the app will be in the App Store.
-
-2. **Reminder PDF generation** — generating a PDF in SwiftUI via `WKWebView` is reliable but adds complexity. An alternative is to add a `POST /invoices/{id}/send-reminder` backend route that generates the PDF server-side (the backend already has the HTML template), removing the need for client-side PDF generation entirely.
-
-3. **Batch invoice send** — after generating a batch, should the app immediately offer to send all invoices by email, or is that a separate action taken later in the web app?
+1. **Batch invoice send** — after generating a batch, should the app immediately offer to send all invoices by email, or is that a separate action taken later in the web app?

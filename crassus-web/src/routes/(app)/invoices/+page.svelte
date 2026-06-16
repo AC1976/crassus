@@ -555,8 +555,7 @@
 		<div class="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111111]">
 			<table class="w-full text-sm">
 				<thead><tr class="border-b border-white/[0.07]">
-					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Number</th>
-					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Lessee</th>
+					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Number / Lessee</th>
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Period</th>
 					<th class="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-white/30">Due</th>
 					<th class="px-5 py-3.5 text-right text-xs font-medium uppercase tracking-wider text-white/30">Amount</th>
@@ -569,11 +568,11 @@
 					<tr class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
 						<td class="px-5 py-4">
 							<p class="font-medium text-white">{inv.invoice_number}</p>
+							<p class="mt-0.5 text-xs text-white/40">{lesseeLabel(agreements.find((a) => a.agreement_uuid === inv.agreement_uuid)?.lessee_uuid ?? '')}</p>
 							{#if inv.invoice_type === 'credit_note'}
 								<span class="mt-0.5 text-xs text-amber-400/70">Credit Note</span>
 							{/if}
 						</td>
-						<td class="px-5 py-4 text-white/60">{lesseeLabel(agreements.find((a) => a.agreement_uuid === inv.agreement_uuid)?.lessee_uuid ?? '')}</td>
 						<td class="px-5 py-4 text-xs text-white/40">{inv.billing_period_start.slice(0,10)} → {inv.billing_period_end.slice(0,10)}</td>
 						<td class="px-5 py-4 text-xs text-white/60">{inv.due_date.slice(0,10)}</td>
 						<td class="px-5 py-4 text-right font-medium {Number(inv.gross_amount) < 0 ? 'text-red-400' : 'text-white'}">

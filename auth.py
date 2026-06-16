@@ -13,6 +13,7 @@ from models import User
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
+MOBILE_TOKEN_EXPIRE_DAYS = 120
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 
@@ -27,8 +28,9 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode()[:72], hashed.encode())
 
 
-def create_access_token(user_id: int, org_id: int, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+def create_access_token(user_id: int, org_id: int, role: str, mobile: bool = False) -> str:
+    delta = timedelta(days=MOBILE_TOKEN_EXPIRE_DAYS) if mobile else timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    expire = datetime.now(timezone.utc) + delta
     payload = {"sub": str(user_id), "org_id": org_id, "role": role, "exp": expire}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 

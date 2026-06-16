@@ -127,7 +127,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive.")
 
-    token = create_access_token(user_id=user.id, org_id=user.org_id, role=user.role)
+    token = create_access_token(user_id=user.id, org_id=user.org_id, role=user.role, mobile=payload.mobile)
     return TokenResponse(access_token=token)
 
 

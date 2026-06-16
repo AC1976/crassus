@@ -239,34 +239,7 @@ Content-Type: application/json
 | 422 | Validation error (e.g. gross ≠ net + VAT) |
 | 409 | Duplicate invoice number |
 
-### Step 3: Send the batch
-
-After confirming generation, the app passes the resulting invoice IDs to the send endpoint. The server generates each PDF using WeasyPrint (server-side, using the same Jinja2 HTML template as the web app), uploads it to S3, and sends the email with the PDF attached via Resend. The iOS app is purely a trigger — no PDF handling on device.
-
-```
-POST /invoices/batch-send
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**Request body**
-
-```json
-{
-  "invoice_ids": [42, 43, 44]
-}
-```
-
-**Response** — array of per-invoice results:
-
-```json
-[
-  { "invoice_id": 42, "invoice_number": "INV-2026-0042", "success": true, "error": null },
-  { "invoice_id": 43, "invoice_number": "INV-2026-0043", "success": false, "error": "Lessee not found." }
-]
-```
-
-The route processes each invoice independently — a failure on one does not abort the others. The app should display the results summary to the user.
+After confirming generation the app shows the created invoices as a results summary. Sending invoices by email is done from the web app, which generates the PDF client-side and sends via Resend.
 
 ---
 

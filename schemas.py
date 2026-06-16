@@ -375,16 +375,6 @@ class BatchGenerateRequest(BaseModel):
     items: List[BatchGenerateItem]
 
 
-class BatchSendRequest(BaseModel):
-    invoice_ids: List[int]
-
-
-class BatchSendResult(BaseModel):
-    invoice_id: int
-    invoice_number: str
-    success: bool
-    error: Optional[str] = None
-
 
 class NextPeriodResponse(BaseModel):
     billing_period_start: date

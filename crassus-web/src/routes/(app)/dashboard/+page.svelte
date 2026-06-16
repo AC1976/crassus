@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { api } from '$lib/api/client';
 
 	// ── Types ────────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@
 		lease_end: string;
 		days_to_expiry: number;
 		notification_deadline: string;
-		days_to_notification: int;
+		days_to_notification: number;
 	};
 
 	type PaymentPoint = {
@@ -287,12 +287,14 @@
 		}
 	}
 
+	let chartTimer: ReturnType<typeof setTimeout> | null = null;
 	$effect(() => {
 		if (data) {
-			// Wait a tick for canvas elements to mount
-			setTimeout(renderCharts, 50);
+			if (chartTimer) clearTimeout(chartTimer);
+			chartTimer = setTimeout(renderCharts, 50);
 		}
 	});
+	onDestroy(() => { if (chartTimer) clearTimeout(chartTimer); });
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -354,8 +356,6 @@
 		return `${days}d`;
 	}
 
-	// TypeScript doesn't know "int" — use number in TS type
-	type int = number;
 </script>
 
 <div class="mb-8 flex items-center justify-between">

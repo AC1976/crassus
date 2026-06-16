@@ -61,6 +61,11 @@
 	let sendError = $state('');
 	let sending = $state(false);
 
+	// Actions dropdown
+	let openActionId: number | null = $state(null);
+	function toggleAction(id: number) { openActionId = openActionId === id ? null : id; }
+	function closeAction() { openActionId = null; }
+
 	// ── Batch billing ──────────────────────────────────────────────────────
 	type BatchRow = {
 		agreement_uuid: string;
@@ -480,6 +485,8 @@
 	const inputClass = 'w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-3 text-sm text-white placeholder-white/20 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition';
 </script>
 
+<svelte:window onclick={closeAction} />
+
 <!-- Page header -->
 <div class="mb-8 flex items-start justify-between">
 	<div>
@@ -597,24 +604,86 @@
 							{/if}
 						</td>
 						<td class="px-5 py-4 text-right">
-							<button onclick={() => previewInvoiceById(inv.id)} class="mr-3 text-xs text-white/40 hover:text-white/70 transition-colors">Preview</button>
-							{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
-								<button onclick={() => handleSend(inv)} disabled={sending && sendingInvoice?.id === inv.id}
-									class="mr-3 text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-40 transition-colors">
-									{sending && sendingInvoice?.id === inv.id ? 'Sending…' : (inv.pdf_s3_key ? 'Reminder' : 'Send')}
+							<div class="relative inline-block">
+								<button
+									onclick={() => toggleAction(inv.id)}
+									class="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/20 hover:text-white/80"
+								>
+									Actions ▾
 								</button>
-								<button onclick={() => openPayModal(inv)} class="mr-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Pay</button>
-								<button onclick={() => handleCredit(inv)} class="mr-3 text-xs text-amber-400/60 hover:text-amber-400 transition-colors">Credit</button>
-							{/if}
-							{#if inv.invoice_status === 'pending'}
-								<button onclick={() => handleDeleteInvoice(inv)} class="mr-3 text-xs text-red-400/50 hover:text-red-400 transition-colors">Delete</button>
-							{/if}
-							{#if inv.pdf_s3_key}
-								<button onclick={() => handleDownload(inv)}
-									class="ml-3 text-xs text-white/30 hover:text-white/70 transition-colors">
-									↓ PDF
-								</button>
-							{/if}
+								{#if openActionId === inv.id}
+									<!-- svelte-ignore a11y_no_static_element_interactions -->
+									<div
+										class="fixed inset-0 z-40"
+										onclick={closeAction}
+										onkeydown={() => {}}
+									></div>
+									<div class="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl">
+										<!-- Preview -->
+										<button onclick={() => { previewInvoiceById(inv.id); closeAction(); }}
+											class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
+											<span class="mt-0.5 text-sm">🔍</span>
+											<div>
+												<p class="text-xs font-medium text-white">Preview</p>
+												<p class="text-[11px] text-white/40">View a rendered preview of this invoice.</p>
+											</div>
+										</button>
+										{#if inv.invoice_status === 'pending' || inv.invoice_status === 'overdue'}
+											<!-- Send / Reminder -->
+											<button onclick={() => { handleSend(inv); closeAction(); }}
+												disabled={sending && sendingInvoice?.id === inv.id}
+												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5 disabled:opacity-40">
+												<span class="mt-0.5 text-sm">📨</span>
+												<div>
+													<p class="text-xs font-medium text-indigo-400">{inv.pdf_s3_key ? 'Send Reminder' : 'Send'}</p>
+													<p class="text-[11px] text-white/40">{inv.pdf_s3_key ? 'Send a follow-up reminder to the lessee.' : 'Email this invoice as a PDF to the lessee.'}</p>
+												</div>
+											</button>
+											<!-- Pay -->
+											<button onclick={() => { openPayModal(inv); closeAction(); }}
+												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
+												<span class="mt-0.5 text-sm">✅</span>
+												<div>
+													<p class="text-xs font-medium text-emerald-400">Pay</p>
+													<p class="text-[11px] text-white/40">Record a payment received for this invoice.</p>
+												</div>
+											</button>
+											<!-- Credit -->
+											<button onclick={() => { handleCredit(inv); closeAction(); }}
+												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
+												<span class="mt-0.5 text-sm">↩️</span>
+												<div>
+													<p class="text-xs font-medium text-amber-400">Credit</p>
+													<p class="text-[11px] text-white/40">Issue a credit note to reverse this invoice.</p>
+												</div>
+											</button>
+										{/if}
+										{#if inv.pdf_s3_key}
+											<!-- Download PDF -->
+											<button onclick={() => { handleDownload(inv); closeAction(); }}
+												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">
+												<span class="mt-0.5 text-sm">⬇️</span>
+												<div>
+													<p class="text-xs font-medium text-white/60">Download PDF</p>
+													<p class="text-[11px] text-white/40">Download the sent invoice PDF.</p>
+												</div>
+											</button>
+										{/if}
+										{#if inv.invoice_status === 'pending'}
+											<div class="border-t border-white/[0.07]"></div>
+											<!-- Delete -->
+											<button onclick={() => { handleDeleteInvoice(inv); closeAction(); }}
+												class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-red-500/10">
+												<span class="mt-0.5 text-sm">🗑️</span>
+												<div>
+													<p class="text-xs font-medium text-red-400">Delete</p>
+													<p class="text-[11px] text-white/40">Permanently remove this draft invoice.</p>
+												</div>
+											</button>
+										{/if}
+									</div>
+								{/if}
+							</div>
 						</td>
 					</tr>
 					{/each}

@@ -66,6 +66,7 @@
 	let dropdownPos: { top: number; right: number } = $state({ top: 0, right: 0 });
 
 	function toggleAction(id: number, event: MouseEvent) {
+		event.stopPropagation();
 		if (openActionId === id) { openActionId = null; return; }
 		const btn = (event.currentTarget as HTMLElement).getBoundingClientRect();
 		dropdownPos = { top: btn.bottom + window.scrollY + 4, right: window.innerWidth - btn.right };
@@ -633,13 +634,10 @@
 								</button>
 								{#if openActionId === inv.id}
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
-									<div
-										class="fixed inset-0 z-40"
-										onclick={closeAction}
-										onkeydown={() => {}}
-									></div>
 									<div class="fixed z-50 w-64 overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl"
-										style="top: {dropdownPos.top}px; right: {dropdownPos.right}px;">
+										style="top: {dropdownPos.top}px; right: {dropdownPos.right}px;"
+										onclick={(e) => e.stopPropagation()}
+										onkeydown={() => {}}>
 										<!-- Preview -->
 										<button onclick={() => { previewInvoiceById(inv.id); closeAction(); }}
 											class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-white/5">

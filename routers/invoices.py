@@ -23,6 +23,8 @@ from schemas import (
     BatchGenerateRequest,
     BatchPreviewRequest,
     BatchPreviewRow,
+    BatchSendRequest,
+    BatchSendResult,
     InvoiceCreate,
     InvoiceRead,
     InvoiceUpdate,
@@ -357,6 +359,256 @@ def batch_generate(
     return created
 
 
+@router.post("/batch-send", response_model=List[BatchSendResult])
+def batch_send(
+    payload: BatchSendRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("owner", "editor")),
+) -> List[BatchSendResult]:
+    """Generate PDFs server-side and send each invoice by email. Designed for the iOS companion app."""
+    results: List[BatchSendResult] = []
+
+    for invoice_id in payload.invoice_ids:
+        invoice = (
+            db.query(Invoice)
+            .filter(Invoice.id == invoice_id, Invoice.org_id == current_user.org_id)
+            .first()
+        )
+        if not invoice:
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number="?", success=False, error="Not found."))
+            continue
+        if invoice.invoice_status not in ("pending", "overdue"):
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=False, error="Invoice is not pending or overdue."))
+            continue
+
+        try:
+            pdf_bytes = _render_invoice_pdf(invoice, db, current_user.org_id)
+        except Exception as exc:
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=False, error=f"PDF render failed: {exc}"))
+            continue
+
+        filename = f"{invoice.invoice_number}.pdf"
+        s3_key = f"invoices/{current_user.org_id}/{filename}"
+
+        try:
+            s3_service.upload_bytes(s3_key, pdf_bytes, "application/pdf")
+        except Exception as exc:
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=False, error=f"S3 upload failed: {exc}"))
+            continue
+
+        ctx = _build_invoice_context(invoice, db, current_user.org_id)
+        lessee = ctx["lessee"]
+        org_settings = ctx["org_settings"]
+
+        if not lessee:
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=False, error="Lessee not found."))
+            continue
+
+        resend.api_key = app_settings.RESEND_API_KEY
+        t            = ctx["t"]
+        lang         = ctx["lang"]
+        company_name = org_settings.company_name if org_settings else "Your Landlord"
+        currency     = ctx["currency"]
+        lessee_name  = ctx["lessee_name"]
+        net_amount   = ctx["net_amount"]
+        vat_amount   = ctx["vat_amount"]
+        gross_amount = ctx["gross_amount"]
+        vat_rate     = ctx["vat_rate"]
+        period_start = invoice.billing_period_start.strftime("%d %b %Y")
+        period_end   = invoice.billing_period_end.strftime("%d %b %Y")
+        due_date_str = invoice.due_date.strftime("%d %b %Y")
+
+        company_address = (org_settings.company_address or "").replace("\n", " · ") if org_settings else ""
+        company_vat     = org_settings.company_vat_number if org_settings and org_settings.company_vat_number else None
+        reply_to        = org_settings.billing_email_sender if org_settings and org_settings.billing_email_sender else None
+
+        property_obj = ctx.get("property_obj")
+        unit         = ctx.get("unit")
+        desc_line    = property_obj.name if property_obj else ""
+        if property_obj and unit:
+            desc_line += f" — {unit.unit_number}"
+
+        def _row(label: str, value: str, bold: bool = False) -> str:
+            weight = "font-weight:600;" if bold else ""
+            size   = "font-size:15px;" if bold else "font-size:13px;"
+            return (
+                f'<tr>'
+                f'<td style="padding:7px 16px 7px 0;color:#666;{size}">{label}</td>'
+                f'<td style="padding:7px 0;color:#111;{size}{weight}text-align:right;">{value}</td>'
+                f'</tr>'
+            )
+
+        summary_rows = (
+            _row(t["email_invoice_no"], invoice.invoice_number)
+            + _row(t["email_period"], f"{period_start} – {period_end}")
+            + (f'<tr><td style="padding:7px 16px 7px 0;color:#666;font-size:13px;">{t["email_description"]}</td>'
+               f'<td style="padding:7px 0;color:#111;font-size:13px;text-align:right;">{desc_line}</td></tr>'
+               if desc_line else "")
+            + f'<tr><td colspan="2" style="padding:4px 0;border-bottom:1px solid #e8e8e8;"></td></tr>'
+            + _row(t["email_net"], f"{currency} {net_amount}")
+            + _row(f'{t["email_vat_prefix"]} ({vat_rate}%)', f"{currency} {vat_amount}")
+            + f'<tr><td colspan="2" style="padding:2px 0;border-bottom:2px solid #111;"></td></tr>'
+            + _row(t["email_total_due"], f"{currency} {gross_amount}", bold=True)
+        )
+
+        bank_block = ""
+        if org_settings and org_settings.bank_account:
+            bank_block = (
+                f'<tr><td style="height:16px;"></td></tr>'
+                f'<tr><td colspan="2" style="padding:12px 14px;background:#f5f5f5;border-radius:6px;'
+                f'font-size:12px;color:#555;line-height:1.7;">'
+                f'<strong style="color:#111;">{t["email_payment_details"]}</strong><br>'
+                f'{t["email_bank_account"]} <span style="font-family:monospace;font-weight:600;color:#111;">'
+                f'{org_settings.bank_account}</span><br>'
+                f'{t["email_reference"]} <span style="font-weight:600;color:#111;">{invoice.invoice_number}</span>'
+                f'</td></tr>'
+            )
+
+        period_mm_yy = invoice.billing_period_start.strftime("%m/%y")
+        subject = t["email_subject_invoice"].format(
+            period=period_mm_yy, property=desc_line or company_name, company=company_name
+        )
+        intro_html = (
+            f'<p style="margin:0 0 20px;font-size:14px;color:#444;line-height:1.7;">'
+            + t["email_intro_invoice"].format(start=period_start, end=period_end)
+            + '</p>'
+        )
+        intro_plain = (
+            f'{t["email_greeting"].format(name=lessee_name)}\n\n'
+            + t["email_intro_invoice"].replace("<strong>", "").replace("</strong>", "").format(
+                start=period_start, end=period_end
+            )
+            + "\n\n"
+        )
+
+        footer_parts = [company_name]
+        if company_address:
+            footer_parts.append(company_address)
+        if company_vat:
+            footer_parts.append(f'{t["vat_company_label"]} {company_vat}')
+        footer_text = " &nbsp;·&nbsp; ".join(footer_parts)
+
+        greeting_html = (
+            f'<p style="margin:0 0 20px;font-size:15px;color:#111;">'
+            f'{t["email_greeting"].format(name=lessee_name)}</p>'
+        )
+
+        email_html = f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;">
+        <tr><td style="height:4px;background:#111111;"></td></tr>
+        <tr><td style="padding:36px 40px 28px;">
+          {greeting_html}
+          {intro_html}
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="margin-bottom:24px;border-radius:6px;background:#1d4ed8;overflow:hidden;">
+            <tr>
+              <td style="padding:12px 16px;">
+                <span style="font-size:11px;font-weight:700;text-transform:uppercase;
+                             letter-spacing:0.8px;color:rgba(255,255,255,0.75);">{t["email_due_label"]}</span><br>
+                <span style="font-size:20px;font-weight:700;color:#ffffff;">{due_date_str}</span>
+              </td>
+              <td style="padding:12px 16px;text-align:right;vertical-align:middle;">
+                <span style="font-size:22px;font-weight:800;color:#ffffff;">{currency} {gross_amount}</span>
+              </td>
+            </tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+            {summary_rows}
+            {bank_block}
+          </table>
+          <p style="margin:28px 0 0;font-size:14px;color:#444;line-height:1.7;">{t["email_closing"]}</p>
+          <p style="margin:16px 0 0;font-size:14px;color:#444;">
+            {t["email_kind_regards"]}<br>
+            <strong style="color:#111;">{company_name}</strong>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 40px;background:#f8f8f8;border-top:1px solid #e8e8e8;
+                       font-size:11px;color:#999;text-align:center;line-height:1.8;">
+          {footer_text}
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+        bank_plain = ""
+        if org_settings and org_settings.bank_account:
+            bank_plain = (
+                f'{t["plain_bank"]} {org_settings.bank_account}\n'
+                f'{t["plain_reference"]} {invoice.invoice_number}\n\n'
+            )
+        email_text = (
+            f"{intro_plain}"
+            f'{t["plain_invoice_no"]} {invoice.invoice_number}\n'
+            f'{t["plain_period"]} {period_start} – {period_end}\n'
+            f'{t["plain_net"]} {currency} {net_amount}\n'
+            f'{t["plain_vat_prefix"]} ({vat_rate}%): {currency} {vat_amount}\n'
+            f'{t["plain_total_due"]} {currency} {gross_amount}\n'
+            f'{t["plain_due_date"]} {due_date_str}\n\n'
+            f"{bank_plain}"
+            f'{t["email_kind_regards"]}\n{company_name}\n'
+        )
+
+        to_address = app_settings.DEV_EMAIL if app_settings.DEV_EMAIL else lessee.email
+        send_kwargs: dict = {
+            "from": app_settings.INVOICE_FROM_EMAIL,
+            "to": [to_address],
+            "subject": subject,
+            "html": email_html,
+            "text": email_text,
+            "attachments": [{"filename": filename, "content": list(pdf_bytes)}],
+        }
+        if reply_to:
+            send_kwargs["reply_to"] = reply_to
+        if reply_to and not app_settings.DEV_EMAIL:
+            send_kwargs["cc"] = [reply_to]
+
+        try:
+            result = resend.Emails.send(send_kwargs)
+        except Exception as exc:
+            results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=False, error=f"Email send failed: {exc}"))
+            continue
+
+        invoice.pdf_s3_key = s3_key
+        invoice.pdf_s3_bucket = app_settings.AWS_S3_BUCKET_NAME
+        invoice.resend_email_id = result.get("id") if isinstance(result, dict) else getattr(result, "id", None)
+        invoice.email_delivery_status = "sent"
+
+        existing_doc = (
+            db.query(Document)
+            .filter(Document.related_entity_type == "invoice", Document.related_entity_id == invoice.id)
+            .first()
+        )
+        if existing_doc:
+            existing_doc.s3_key = s3_key
+            existing_doc.s3_bucket = app_settings.AWS_S3_BUCKET_NAME
+            existing_doc.display_name = filename
+            existing_doc.file_size_bytes = len(pdf_bytes)
+        else:
+            db.add(Document(
+                org_id=current_user.org_id,
+                display_name=filename,
+                s3_bucket=app_settings.AWS_S3_BUCKET_NAME,
+                s3_key=s3_key,
+                file_size_bytes=len(pdf_bytes),
+                mime_type="application/pdf",
+                related_entity_type="invoice",
+                related_entity_id=invoice.id,
+                document_category="invoice",
+                uploaded_by_user_id=current_user.id,
+            ))
+
+        db.commit()
+        results.append(BatchSendResult(invoice_id=invoice_id, invoice_number=invoice.invoice_number, success=True))
+
+    return results
+
 
 class CheckPeriodResponse(BaseModel):
     already_invoiced: bool
@@ -617,6 +869,15 @@ def _build_invoice_context(invoice: Invoice, db: Session, org_id: int) -> dict:
         "lang": lang,
         "t": t,
     }
+
+
+def _render_invoice_pdf(invoice: Invoice, db: Session, org_id: int) -> bytes:
+    """Render an invoice to PDF bytes using WeasyPrint."""
+    from weasyprint import HTML as WeasyprintHTML
+    ctx = _build_invoice_context(invoice, db, org_id)
+    template = _get_template(invoice.invoice_type)
+    html_string = template.render(**ctx)
+    return WeasyprintHTML(string=html_string).write_pdf()
 
 
 @router.get("/{invoice_id}/download")

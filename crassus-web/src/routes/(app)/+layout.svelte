@@ -129,7 +129,7 @@
 	</aside>
 
 	<div class="flex min-w-0 flex-1 flex-col">
-		<header class="flex h-12 flex-shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#0a0a0a] px-5">
+		<header class="flex flex-shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#0a0a0a] px-5" style="height: calc(3rem + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);">
 			<!-- Hamburger — mobile only -->
 			<button
 				class="mr-3 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white/40 hover:text-white transition-colors sm:hidden"
@@ -146,7 +146,7 @@
 			{/if}
 		</header>
 
-		<main class="flex-1 overflow-y-auto bg-[#0a0a0a]">
+		<main class="flex-1 overflow-y-auto bg-[#0a0a0a]" style="padding-bottom: env(safe-area-inset-bottom);">
 			<div class="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
 				{@render children()}
 			</div>

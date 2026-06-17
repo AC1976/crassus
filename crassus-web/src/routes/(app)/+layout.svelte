@@ -77,9 +77,9 @@
 
 <div class="flex h-screen bg-[#0a0a0a]">
 
-	<!-- Sidebar — hidden on mobile, slide-in as drawer -->
-	<aside class="fixed inset-y-0 left-0 z-50 flex w-52 flex-shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0a0a] transition-transform duration-200
-		{drawerOpen ? 'translate-x-0' : '-translate-x-full'} sm:relative sm:translate-x-0">
+	<!-- Sidebar — hidden on mobile unless drawer open, always visible on sm+ -->
+	<aside class="w-52 flex-shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0a0a]
+		{drawerOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden'} sm:relative sm:flex">
 		<div class="px-5 pb-2 pt-4">
 			<span class="text-[10px] font-semibold uppercase tracking-widest text-white/20 select-none">Menu</span>
 		</div>

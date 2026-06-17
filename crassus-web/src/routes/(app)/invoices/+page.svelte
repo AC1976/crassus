@@ -2,6 +2,9 @@
 	import { browser } from '$app/environment';
 	import { onDestroy } from 'svelte';
 	import { api, getToken } from '$lib/api/client';
+	import { page } from '$app/stores';
+
+	const appMode = $derived($page.url.searchParams.get('mode') === 'app');
 
 	type Agreement = {
 		id: number; agreement_uuid: string; property_id: number; unit_id: number | null; lessee_uuid: string;
@@ -520,8 +523,13 @@
 <!-- Page header -->
 <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 	<div>
-		<h2 class="text-2xl font-semibold text-white">Invoices</h2>
-		<p class="mt-1 text-sm text-white/40">Generate, track, and manage invoices</p>
+		{#if appMode}
+			<h2 class="text-2xl font-semibold text-white">Issue Invoices</h2>
+			<p class="mt-1 text-sm text-white/40">Select an active lease to generate an invoice, or run batch billing for all.</p>
+		{:else}
+			<h2 class="text-2xl font-semibold text-white">Invoices</h2>
+			<p class="mt-1 text-sm text-white/40">Generate, track, and manage invoices</p>
+		{/if}
 	</div>
 	<button onclick={openBatchModal}
 		class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors sm:w-auto">
@@ -595,7 +603,8 @@
 	{/if}
 </div>
 
-<!-- Invoice ledger -->
+<!-- Invoice ledger — hidden in app mode -->
+{#if !appMode}
 <div>
 	<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<h3 class="text-xs font-semibold uppercase tracking-wider text-white/30">Invoice Ledger</h3>
@@ -814,6 +823,7 @@
 		</div>
 	{/if}
 </div>
+{/if}
 
 <!-- Generate Invoice Modal -->
 {#if showGenerateModal}

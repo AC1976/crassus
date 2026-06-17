@@ -10,6 +10,7 @@
 	const { children } = $props();
 
 	let user: User | null = $state(null);
+	let drawerOpen = $state(false);
 
 	const navSections = [
 		{
@@ -56,17 +57,35 @@
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href || (href !== '/dashboard' && $page.url.pathname.startsWith(href));
 	}
+
+	// Close drawer when route changes
+	$effect(() => {
+		$page.url.pathname;
+		drawerOpen = false;
+	});
 </script>
 
+<!-- Mobile drawer backdrop -->
+{#if drawerOpen}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm sm:hidden"
+		onclick={() => drawerOpen = false}
+		onkeydown={() => {}}
+	></div>
+{/if}
+
 <div class="flex h-screen bg-[#0a0a0a]">
-	<aside class="flex w-52 flex-shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0a0a]">
+
+	<!-- Sidebar — hidden on mobile, slide-in as drawer -->
+	<aside class="fixed inset-y-0 left-0 z-50 flex w-52 flex-shrink-0 flex-col border-r border-white/[0.07] bg-[#0a0a0a] transition-transform duration-200
+		{drawerOpen ? 'translate-x-0' : '-translate-x-full'} sm:relative sm:translate-x-0">
 		<div class="px-5 pb-2 pt-4">
 			<span class="text-[10px] font-semibold uppercase tracking-widest text-white/20 select-none">Menu</span>
 		</div>
 
 		<nav class="flex-1 overflow-y-auto px-2 pb-4">
 			{#each navSections as section, si}
-				<!-- section gap / divider between groups -->
 				{#if si > 0}
 					<div class="mx-1 my-3 border-t border-white/[0.06]"></div>
 				{/if}
@@ -111,6 +130,16 @@
 
 	<div class="flex min-w-0 flex-1 flex-col">
 		<header class="flex h-12 flex-shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#0a0a0a] px-5">
+			<!-- Hamburger — mobile only -->
+			<button
+				class="mr-3 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white/40 hover:text-white transition-colors sm:hidden"
+				onclick={() => drawerOpen = !drawerOpen}
+				aria-label="Toggle menu"
+			>
+				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+				</svg>
+			</button>
 			<span class="text-sm font-semibold tracking-tight text-white/70">Crassus Property Management</span>
 			{#if user}
 				<UserMenu {user} />
@@ -118,7 +147,7 @@
 		</header>
 
 		<main class="flex-1 overflow-y-auto bg-[#0a0a0a]">
-			<div class="mx-auto max-w-7xl px-8 py-8">
+			<div class="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
 				{@render children()}
 			</div>
 		</main>

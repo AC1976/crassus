@@ -140,7 +140,8 @@
 					<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
 				</svg>
 			</button>
-			<span class="text-sm font-semibold tracking-tight text-white/70">Crassus Property Management</span>
+			<span class="text-sm font-semibold tracking-tight text-white/70 hidden sm:block">Crassus Property Management</span>
+		<span class="text-sm font-semibold tracking-tight text-white/70 sm:hidden">Crassus</span>
 			{#if user}
 				<UserMenu {user} />
 			{/if}

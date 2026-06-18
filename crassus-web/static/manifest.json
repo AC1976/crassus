@@ -2,7 +2,7 @@
   "name": "Crassus Property Management",
   "short_name": "Crassus",
   "description": "Invoicing, expenses, VAT reports, and lease tracking for landlords.",
-  "start_url": "/dashboard",
+  "start_url": "/invoices?mode=app",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",

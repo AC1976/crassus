@@ -750,7 +750,8 @@
 						<p class="text-sm text-white/30">No {invoiceModal} invoices.</p>
 					</div>
 				{:else}
-					<table class="w-full text-sm">
+					<!-- Desktop table -->
+					<table class="hidden w-full text-sm sm:table">
 						<thead class="sticky top-0 bg-[#111111]">
 							<tr class="border-b border-white/[0.05]">
 								<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Invoice</th>
@@ -783,6 +784,29 @@
 							{/each}
 						</tbody>
 					</table>
+					<!-- Mobile cards -->
+					<div class="divide-y divide-white/[0.04] sm:hidden">
+						{#each rows as inv}
+							{@const badge = emailBadge[inv.email_delivery_status] ?? emailBadge.unsent}
+							<div class="px-4 py-4">
+								<div class="flex items-start justify-between gap-2">
+									<div class="min-w-0">
+										<p class="font-medium text-white">{inv.invoice_number}</p>
+										<p class="mt-0.5 text-xs text-white/40 truncate">{lesseeName(inv.agreement_uuid)}</p>
+									</div>
+									<p class="shrink-0 font-semibold text-white">{fmt(inv.gross_amount)}</p>
+								</div>
+								<div class="mt-2 flex flex-wrap items-center gap-2">
+									<span class="text-xs text-white/40">
+										Due <span class="{invoiceModal === 'overdue' ? 'text-red-400' : 'text-white/60'}">{inv.due_date.slice(0,10)}</span>
+									</span>
+									<span class="text-xs text-white/20">·</span>
+									<span class="text-xs text-white/40">{inv.billing_period_start.slice(0,7)}</span>
+									<span class="ml-auto rounded-md px-2 py-1 text-xs {badge.cls}">{badge.label}</span>
+								</div>
+							</div>
+						{/each}
+					</div>
 				{/if}
 			</div>
 

@@ -424,7 +424,7 @@
 {:else}
 
 <!-- ── Row 1: Stat cards ───────────────────────────────────────────────── -->
-<div class="grid grid-cols-4 gap-4 mb-4">
+<div class="grid grid-cols-2 gap-3 mb-4 sm:grid-cols-4 sm:gap-4">
 
 	<button onclick={() => invoiceModal = 'pending'} class="rounded-2xl border border-white/[0.07] bg-[#111111] p-5 text-left transition hover:border-white/[0.12] hover:bg-white/[0.02] w-full">
 		<p class="text-xs font-medium uppercase tracking-wider text-white/30">Pending Invoices</p>
@@ -458,7 +458,7 @@
 </div>
 
 <!-- ── Row 1b: Expense stat cards ─────────────────────────────────────── -->
-<div class="grid grid-cols-2 gap-4 mb-4">
+<div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 sm:gap-4">
 
 	<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-5">
 		<p class="text-xs font-medium uppercase tracking-wider text-white/30">Open Expenses</p>
@@ -479,7 +479,7 @@
 </div>
 
 <!-- ── Row 2: Billing forecast + YTD collection ───────────────────────── -->
-<div class="grid grid-cols-2 gap-4 mb-4">
+<div class="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 sm:gap-4">
 
 	<!-- Billing forecast -->
 	<div class="rounded-2xl border border-white/[0.07] bg-[#111111] p-6">
@@ -541,7 +541,8 @@
 			<p class="text-sm text-white/30">No leases expiring in the next 12 months.</p>
 		</div>
 	{:else}
-		<table class="w-full text-sm">
+		<!-- Desktop table -->
+		<table class="hidden w-full text-sm sm:table">
 			<thead>
 				<tr class="border-b border-white/[0.05]">
 					<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Property / Unit</th>
@@ -574,6 +575,27 @@
 				{/each}
 			</tbody>
 		</table>
+		<!-- Mobile cards -->
+		<div class="divide-y divide-white/[0.04] sm:hidden">
+			{#each data.lease_expiries as row}
+				<div class="px-4 py-4">
+					<div class="flex items-start justify-between gap-2">
+						<div class="min-w-0">
+							<p class="font-medium text-white truncate">{row.property_name}</p>
+							<p class="text-xs text-white/40">Unit {row.unit_number} · {row.lessee_name}</p>
+						</div>
+						<span class="shrink-0 rounded-md border px-2 py-1 text-xs font-medium {notificationClass(row.days_to_notification)}">
+							{notificationLabel(row.days_to_notification)}
+						</span>
+					</div>
+					<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/40">
+						<span>Ends <span class="text-white/60">{formatDate(row.lease_end)}</span></span>
+						<span class="{expiryClass(row.days_to_expiry)}">{row.days_to_expiry}d to expiry</span>
+						<span>Notify by <span class="text-white/60">{formatDate(row.notification_deadline)}</span></span>
+					</div>
+				</div>
+			{/each}
+		</div>
 	{/if}
 </div>
 
@@ -586,7 +608,8 @@
 			<span class="ml-2 normal-case font-normal text-white/20">— upcoming annual index dates for active leases</span>
 		</h3>
 	</div>
-	<table class="w-full text-sm">
+	<!-- Desktop table -->
+	<table class="hidden w-full text-sm sm:table">
 		<thead>
 			<tr class="border-b border-white/[0.05]">
 				<th class="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/25">Property / Unit</th>
@@ -626,6 +649,35 @@
 			{/each}
 		</tbody>
 	</table>
+	<!-- Mobile cards -->
+	<div class="divide-y divide-white/[0.04] sm:hidden">
+		{#each data.indexations.filter(r => r.days_until <= 90) as row}
+			<div class="px-4 py-4">
+				<div class="flex items-start justify-between gap-2">
+					<div class="min-w-0">
+						<p class="font-medium text-white truncate">{row.property_name}</p>
+						<p class="text-xs text-white/40">
+							{#if row.unit_number !== '—'}Unit {row.unit_number} · {/if}{row.lessee_name}
+						</p>
+					</div>
+					<span class="shrink-0 rounded-md border px-2 py-1 text-xs font-medium {indexationClass(row.days_until)}">
+						{indexationLabel(row.days_until)}
+					</span>
+				</div>
+				<div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+					<div class="text-xs text-white/40">
+						<span>Rent <span class="font-mono text-white/60">{row.currency} {parseFloat(row.base_rent_amount).toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
+						<span class="mx-2">·</span>
+						<span>{formatDate(row.next_indexation)}</span>
+					</div>
+					<button
+						onclick={() => openIndexModal(row)}
+						class="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+					>Apply Index</button>
+				</div>
+			</div>
+		{/each}
+	</div>
 </div>
 {/if}
 
@@ -638,7 +690,7 @@
 	<div class="divide-y divide-white/[0.04]">
 		{#each data.payment_performance as perf}
 			<div class="px-6 py-5">
-				<div class="mb-3 flex items-center justify-between">
+				<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<span class="text-sm font-semibold text-white">{perf.property_name}</span>
 						<span class="mx-2 text-white/20">·</span>
@@ -647,9 +699,9 @@
 						<span class="text-sm text-white/50">{perf.lessee_name}</span>
 					</div>
 					<div class="flex items-center gap-3 text-xs text-white/25">
-						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-emerald-500"></span> Early / on time</span>
-						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-amber-400"></span> ≤7d late</span>
-						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-red-400"></span> &gt;7d late</span>
+						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-emerald-500"></span> On time</span>
+						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-amber-400"></span> ≤7d</span>
+						<span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-sm bg-red-400"></span> &gt;7d</span>
 					</div>
 				</div>
 				<div class="h-36">
@@ -673,13 +725,13 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 	<div
 		role="presentation"
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+		class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm p-0 sm:items-center sm:p-4"
 		onclick={() => invoiceModal = null}
 	>
 		<div
 			role="dialog"
 			aria-modal="true"
-			class="flex max-h-[80vh] w-full max-w-[56rem] flex-col rounded-2xl border border-white/[0.08] bg-[#111111] shadow-2xl"
+			class="flex max-h-[85vh] w-full max-w-[56rem] flex-col rounded-t-2xl border border-white/[0.08] bg-[#111111] shadow-2xl sm:rounded-2xl"
 			onclick={(e) => e.stopPropagation()}
 		>
 			<!-- Header -->
@@ -750,13 +802,13 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 	<div
 		role="presentation"
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+		class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm p-0 sm:items-center sm:p-4"
 		onclick={() => (modal = null)}
 	>
 		<div
 			role="dialog"
 			aria-modal="true"
-			class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#111111] shadow-2xl"
+			class="w-full max-w-md rounded-t-2xl border border-white/[0.08] bg-[#111111] shadow-2xl sm:rounded-2xl"
 			onclick={(e) => e.stopPropagation()}
 		>
 			<!-- Header -->
